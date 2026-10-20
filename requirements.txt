@@ -1,0 +1,5 @@
+# 1. gün: LLM erişimi, vektör veritabanı, token sayımı, .env okuma
+openai==3.35.1                  # Gemini'nin OpenAI uyumlu ucuna da bununla bağlanıyoruz
+pymilvus[milvus-lite]==3.0.2    # Milvus istemcisi + yerel dosyada çalışan Milvus Lite
+tiktoken==0.14.0                # token sayımı
+python-dotenv==1.2.4            # .env dosyasını ortam değişkeni olarak yükler

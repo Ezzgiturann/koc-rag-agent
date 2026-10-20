@@ -1,0 +1,18 @@
+# Gizli anahtarlar — asla commit'lenmez
+.env
+
+# Sanal ortam
+.venv/
+
+# Python önbellekleri
+__pycache__/
+*.pyc
+
+# Yerel veri: Milvus Lite dosyaları, taranan sayfalar, SQLite logları
+data/
+*.db
+
+# İşletim sistemi / editör
+.DS_Store
+.vscode/
+.idea/
