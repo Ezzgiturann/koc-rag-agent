@@ -21,3 +21,10 @@
 - Elle anlamlandırılmış 4 boyutlu vektörlerle aramada "otomotiv" sorgusu Ford Otosan'ı 0.964 skorla ilk buldu.
 - Tuzak: pymilvus import sırasında `.env`'i kendisi okuyor ve `MILVUS_URI`'yi http adresi sanıyor → değişkeni `VECTOR_DB_URI` yaptık.
 - Şemada olmayan alanlar (`ad`, `metin`) "dinamik alan" olarak saklanıyor; aramada `output_fields` ile geri istenir.
+
+### Adım 3: LLM'e soru gönderme (`agent/ask.py`)
+- `OpenAI(api_key, base_url)` ile Gemini'ye bağlandık; `base_url` değişirse aynı kod başka sağlayıcıya gider.
+- Chat Completions'ta her istekte `messages` listesini (system + user) biz göndeririz; sunucu geçmişi hatırlamaz.
+- Gemini 3.8 Flash varsayılan olarak gizli "düşünme" token'ları harcıyor (bir denemede 512 token, 39 sn); bunları ayrı alanda değil sadece `total_tokens` içinde raporluyor → `toplam − girdi − çıktı` ile hesapladık.
+- `reasoning_effort="low"` ile düşünme 0'a indi, süre ~15 sn'ye düştü; basit/RAG sorularında yeterli.
+- Model cevabı kendi hafızasından verdi, kaynak yok → doğruluğunu kontrol edemiyoruz; RAG'e ihtiyacımızın nedeni bu.
