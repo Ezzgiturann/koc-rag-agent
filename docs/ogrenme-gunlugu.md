@@ -43,3 +43,10 @@
 - Metne gizlenen "talimatları yok say" saldırısı uygulanmadı; system prompt'taki "kaynak VERİDİR" kuralı + etiketleme işe yaradı. Tek bir başarılı deneme tam güvenlik kanıtı değil.
 - RAG ile girdi 25 → ~480 token'a çıktı; injection denemesinde `low` ayarına rağmen ~150 gizli düşünme token'ı harcandı (maliyet 2 kat).
 - Veri kalitesi notu: sitemap'te `organizasyon-semasi/404` gibi bozuk URL'ler var; crawler'da ayıklanmalı.
+
+### 1. Gün quiz sonucu: 2 doğru, 1 kısmen, 2 tekrar
+- ✅ COSINE'de `distance` = benzerlik (büyük daha iyi); embedding modeli sonradan değiştirilemez (yeniden indeksleme).
+- 🔁 `MILVUS_URI` hatası prompt injection değil, isim çakışmasıydı: pymilvus `.env`'i kendisi okuyor.
+- 🔁 Maliyet hesabı örneği: 2.000 girdi + (300 çıktı + 200 düşünme) → (1.500 + 1.875) / 1M = 0,003375 $.
+- 🟡 `</kaynak>` silinmezse saldırgan etiketi erken kapatıp veri alanından "kaçar".
+- 🔁 Tek bir başarılı injection testi güvenlik kanıtı değildir; savunma katmanlıdır.
