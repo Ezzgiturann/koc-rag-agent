@@ -28,3 +28,10 @@
 - Gemini 3.8 Flash varsayılan olarak gizli "düşünme" token'ları harcıyor (bir denemede 512 token, 39 sn); bunları ayrı alanda değil sadece `total_tokens` içinde raporluyor → `toplam − girdi − çıktı` ile hesapladık.
 - `reasoning_effort="low"` ile düşünme 0'a indi, süre ~15 sn'ye düştü; basit/RAG sorularında yeterli.
 - Model cevabı kendi hafızasından verdi, kaynak yok → doğruluğunu kontrol edemiyoruz; RAG'e ihtiyacımızın nedeni bu.
+
+### Adım 4: Token ve maliyet (`agent/cost.py`)
+- tiktoken (`o200k_base`) ile istek atmadan önce token tahmini; Türkçe ekler ayrı token'lara bölünüyor (`kur|uldu`), aynı cümle İngilizceden daha çok token tutuyor.
+- Tahmin (11) ile Gemini'nin raporu (25) farklı: system mesajı + mesaj format token'ları + Gemini'nin farklı tokenizer'ı.
+- Maliyet = (girdi × girdi fiyatı + (çıktı + düşünme) × çıktı fiyatı) / 1.000.000; fiyatlar 1M token başına.
+- Düşünme token'ları çıktı fiyatından faturalanıyor (fiyat sayfasında "including thinking tokens").
+- Bilinmeyen modelde 0 döndürmek yerine `ValueError`: yanlış "bedava" raporu sessizce oluşmasın.
