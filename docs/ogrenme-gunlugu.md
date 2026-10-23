@@ -117,3 +117,11 @@
 - Gerçek zayıflık: "yatırımcılarla ilişkilerden sorumlu koordinatör" sorusu unvanın birebir geçtiği chunk'ları bulamadı → 4. gün hibrit arama (BM25) için aday.
 - Skor ölçeği modele özgü: ilgisiz cümle Gemini'de ~0,62, Gemma'da ~0,35 → sabit eşik modeller arası taşınamaz.
 - Menü temizliği: 20 sayfada trafilatura site menüsünü almıştı; genel "çok tekrar eden satırı sil" kuralı CEO adını da silecekti → hedefli kural. Sonuç: 532 sayfa, 1.860 chunk.
+
+### Adım 4: Milvus'a yazma (`indexing/build_index.py`)
+- Şemayı kendimiz tanımladık: `chunk_id` (birincil anahtar, VARCHAR), `vector` (768), `metin`, `baslik`, `url`, `tarih` (nullable), `chunk_no`.
+- VARCHAR uzunluğu bayt cinsinden; Türkçe karakterler UTF-8'de 2 bayt. En uzun chunk 2.198 bayt → sınır 8.192 (büyük chunk deneyleri için pay).
+- İndeks: FLAT (tam arama). Milvus Lite FLAT, IVF_FLAT, HNSW, AUTOINDEX'in hepsini destekliyor; ~2.000 vektörde yaklaşık aramaya gerek yok.
+- Tuzaklar: yeni süreçte koleksiyon "released" → aramadan önce `load_collection()`; arama sonucunda birincil anahtar şemadaki adıyla (`chunk_id`) gelir, `id` değil.
+- Sağlama: 3 rastgele chunk kendi vektörüyle arandı → kendini 1,0000 skorla buldu. Veritabanı 7,2 MB (JSON önbelleği 30 MB; float32 farkı).
+- Koleksiyon açıklamasına model ve boyut yazıldı: arama farklı modelle yapılırsa fark edilebilsin.
