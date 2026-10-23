@@ -21,6 +21,15 @@ OUTPUT_PATH = Path("data/pages.jsonl")
 TITLE_PREFIX = "Koç Holding | "
 MIN_CHARS = 200  # bundan kısa metinler (ör. sadece JS menüsü olan sayfalar) atlanır
 
+# Bazı sayfalarda trafilatura ana metni bulamayıp site menüsünü de alıyor.
+# Menü "EN" satırıyla başlıyor ve bu satırla bitiyor; ardından "EN" ve "Ana Sayfa" geliyor.
+MENU_END = "\nKoç Topluluğu 100 Yaşında\nEN\n"
+# Sayfa sonuna eklenen arayüz artıkları (tam satır olarak eşleşir)
+NOISE_LINES = {
+    "Ana Sayfa", "Select...", "Bul", "İlgili sayfalar",
+    "Please ensure Javascript is enabled for purposes of", "website accessibility",
+}
+
 
 def clean_title(title: str | None) -> str:
     """Tüm sayfalarda tekrar eden 'Koç Holding | ' önekini atar."""
@@ -44,6 +53,18 @@ def pick_date(extracted_date: str | None, url: str) -> str | None:
     return url_year  # tutarsızsa en azından yıl doğru olsun
 
 
+def strip_site_menu(text: str) -> str:
+    """Metne karışmış site menüsünü ve arayüz artıklarını atar.
+
+    Genel "çok tekrar eden satırı sil" yöntemi kullanmıyoruz: yönetim kurulu
+    listesi gibi gerçek bilgiler de birçok sayfada tekrar ediyor.
+    """
+    if text.startswith("EN\n") and MENU_END in text:
+        text = text.split(MENU_END, 1)[1]  # menü bitişinden sonrasını al
+    lines = [line for line in text.split("\n") if line.strip() not in NOISE_LINES]
+    return "\n".join(lines).strip()
+
+
 def content_hash(text: str) -> str:
     """Metnin parmak izi: aynı metin → aynı hash. Boşluk farkları önemsiz olsun diye normalize ediyoruz."""
     normalized = " ".join(text.split())
@@ -61,11 +82,14 @@ def extract_page(html: str, url: str) -> dict | None:
     )
     if doc is None or not doc.text:
         return None
+    text = strip_site_menu(doc.text)
+    if not text:
+        return None
     return {
         "url": url,
         "baslik": clean_title(doc.title),
         "tarih": pick_date(doc.date, url),
-        "metin": doc.text,
+        "metin": text,
     }
 
 

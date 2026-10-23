@@ -109,3 +109,11 @@
 - Dakikalık limit için 2. günün `RateLimiter`'ı yeniden kullanıldı (paketler arası 61 sn); backoff yedek güvenlik. Hata: son denemeden sonra boşuna bekleniyordu → düzeltildi.
 - Günlük kota doldu: 1.880 chunk'ın 800'ü bitti. JSON'da vektör başına ~17 KB (float32'de 3 KB olurdu).
 - Ders: hata mesajının tamamını yazdır; limitin türünü (dakika/gün) ve bekleme süresini API kendisi söylüyor.
+
+### Ara karar: embedding yerel modele taşındı (EmbeddingGemma)
+- Gemini günlük kotası (1.000) 1.860 chunk'a yetmiyor → yerel Ollama'da iki aday 15 soruluk testle karşılaştırıldı.
+- EmbeddingGemma: Hit@1 0,80 · Hit@5 0,93 · MRR 0,845 · 97 sn. Qwen3-Embedding 0.6B: 0,67 · 0,93 · 0,739 · 521 sn.
+- Test setinde hata: tek bir yazım biçimi ("%8") kabul ediliyordu; "yüzde 8", "% 8" yazan doğru chunk'lar yanlış sayıldı → kanıt listesi alternatifleri kabul ediyor. Düşük skorda önce başarısız örneklere bak.
+- Gerçek zayıflık: "yatırımcılarla ilişkilerden sorumlu koordinatör" sorusu unvanın birebir geçtiği chunk'ları bulamadı → 4. gün hibrit arama (BM25) için aday.
+- Skor ölçeği modele özgü: ilgisiz cümle Gemini'de ~0,62, Gemma'da ~0,35 → sabit eşik modeller arası taşınamaz.
+- Menü temizliği: 20 sayfada trafilatura site menüsünü almıştı; genel "çok tekrar eden satırı sil" kuralı CEO adını da silecekti → hedefli kural. Sonuç: 532 sayfa, 1.860 chunk.

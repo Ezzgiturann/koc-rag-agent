@@ -1,4 +1,8 @@
-"""Chunk'ları Gemini ile embedding'e çevirir; sonuçları diskte önbellekler.
+"""Chunk'ları embedding'e çevirir; sonuçları diskte önbellekler.
+
+Model ve sunucu .env'den gelir: şu an yerel Ollama + EmbeddingGemma (Gemini'nin
+ücretsiz katmanı günde 1.000 embedding ile sınırlı olduğu için, bkz. eval/embedding_karsilastirma.py).
+EmbeddingGemma ile gemini-embedding-2 aynı önek formatını kullanır.
 
 Önbellek anahtarı = hash(model + boyut + modele giden metin). Böylece model,
 boyut, önek ya da chunk metni değişirse eski vektör kendiliğinden geçersiz olur.
@@ -27,12 +31,9 @@ CHUNKS_PATH = Path("data/chunks.jsonl")
 EMBEDDINGS_PATH = Path("data/embeddings.jsonl")
 BATCH_SIZE = 100  # Gemini sınırı: bir istekte en fazla 100 metin (denenerek doğrulandı)
 MAX_RETRIES = 5
-# Ücretsiz katman: dakikada 100 embedding ve paketteki HER metin ayrı sayılıyor
-# (429 mesajı: EmbedContentRequestsPerMinute..., quotaValue 100). Limite çarpmadan yavaşla.
-SECONDS_PER_BATCH = 61
 
 
-# gemini-embedding-2 "task_type" yerine metnin başına önek istiyor (Gemini dokümanı)
+# EmbeddingGemma ve gemini-embedding-2 "task_type" yerine metnin başına önek istiyor
 def as_document(text: str, title: str | None) -> str:
     return f"title: {title or 'none'} | text: {text}"
 
@@ -45,6 +46,15 @@ def embedding_settings() -> tuple[str, int]:
     """.env'den model adı ve vektör boyutu."""
     load_dotenv()  # get_client()'tan önce çağrılabileceği için .env'i burada da yükle
     return os.environ["EMBEDDING_MODEL"], int(os.environ["EMBEDDING_DIM"])
+
+
+def get_embedding_client() -> OpenAI:
+    """Embedding sunucusuna bağlanan istemci (cevap modelinden bağımsız)."""
+    load_dotenv()
+    base_url = os.environ["EMBEDDING_BASE_URL"]
+    if base_url == os.environ["LLM_BASE_URL"]:
+        return get_client()  # aynı sağlayıcı (ör. Gemini): aynı anahtarı kullan
+    return OpenAI(base_url=base_url, api_key="ollama")  # yerel Ollama anahtar istemez
 
 
 def cache_key(model: str, dims: int, model_input: str) -> str:
@@ -98,8 +108,10 @@ def main() -> None:
             todo.append((key, model_input))
     print(f"{len(chunks)} chunk | önbellekte {len(chunks) - len(todo)} | üretilecek {len(todo)}")
 
-    client = get_client()
-    limiter = RateLimiter(SECONDS_PER_BATCH)  # 2. gündeki fetcher'ın hız sınırlayıcısı
+    client = get_embedding_client()
+    # Paketler arası bekleme: yerelde 0; Gemini ücretsiz katmanda 61 sn (dakikada 100 embedding,
+    # paketteki her metin ayrı sayılıyor). 2. gündeki fetcher'ın hız sınırlayıcısı.
+    limiter = RateLimiter(float(os.environ.get("EMBEDDING_MIN_INTERVAL", "0")))
     start = time.perf_counter()
     with EMBEDDINGS_PATH.open("a", encoding="utf-8") as out:
         for i in range(0, len(todo), BATCH_SIZE):

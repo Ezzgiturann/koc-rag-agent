@@ -33,8 +33,11 @@ anlamak. Hız değil anlaşılırlık önemli.
   geçiş yalnızca .env değişikliği olmalı.
 - Cevap modeli: gemini-3.8-flash (kullanmadan önce güncel model adını
   Gemini dokümanlarından doğrula)
-- Embedding: gemini-embedding-2 (boyut sabit tutulur; değişirse tüm
-  indeks yeniden oluşturulur)
+- Embedding: yerel Ollama + embeddinggemma:300m, 768 boyut (boyut sabit
+  tutulur; değişirse tüm indeks yeniden oluşturulur). Gemini'nin ücretsiz
+  katmanı günde 1.000 embedding ile sınırlı olduğu için yerele geçildi;
+  Qwen3-Embedding 0.6B ile karşılaştırıldı (eval/embedding_karsilastirma.py).
+  Önek formatı gemini-embedding-2 ile aynı.
 - Ücretsiz katmanda gönderilen içerik Google tarafından kullanılabilir;
   yalnızca kamuya açık veri gönder.
 - Vektör veritabanı: Milvus (pymilvus); geliştirmede Milvus Lite,

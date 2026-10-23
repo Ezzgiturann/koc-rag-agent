@@ -3,7 +3,8 @@
 Üç soruya cevap arıyoruz:
   1. Anlamca yakın cümleler (ortak kelime olmasa bile) yakın vektörler mi üretiyor?
   2. gemini-embedding-2'nin "sorgu/belge" önekleri sıralamayı değiştiriyor mu?
-  3. 768 boyut, 3072 boyutla aynı sıralamayı veriyor mu?
+  3. Küçük boyut (256) büyük boyutla (768) aynı sıralamayı veriyor mu?
+     (İlk sürüm gemini-embedding-2 ile 768/3072 karşılaştırıyordu; sonuçlar ogrenme-gunlugu.md'de.)
 
 Çalıştırma:
     python -m indexing.embedding_demo
@@ -13,8 +14,7 @@ import os
 
 from openai import OpenAI
 
-from agent.ask import get_client
-from indexing.embedder import as_document, as_query
+from indexing.embedder import as_document, as_query, get_embedding_client
 
 SENTENCES = {
     "S1": "Tüpraş, Türkiye'nin en büyük petrol rafinerisini işletiyor.",
@@ -46,7 +46,7 @@ def rank(query_vec: list[float], doc_vecs: dict[str, list[float]]) -> list[tuple
 
 
 def main() -> None:
-    client = get_client()
+    client = get_embedding_client()
     keys = list(SENTENCES)
 
     # --- Deney 1: cümleler arası benzerlik matrisi (768 boyut, belge öneki) ---
@@ -63,9 +63,9 @@ def main() -> None:
     for label, qvec in [("önekli ", with_prefix), ("öneksiz", without_prefix)]:
         print(f"  {label}: " + "  ".join(f"{k}={s:.2f}" for k, s in rank(qvec, doc_vecs)))
 
-    # --- Deney 3: 768 ve 3072 boyut aynı sırayı veriyor mu? ---
+    # --- Deney 3: 256 ve 768 boyut aynı sırayı veriyor mu? ---
     print("\nDeney 3 — boyut karşılaştırması (önekli sorgu)")
-    for dims in (768, 3072):
+    for dims in (256, 768):
         vecs = embed(client, [as_query(QUERY)] + [as_document(SENTENCES[k], None) for k in keys], dims=dims)
         ranking = rank(vecs[0], dict(zip(keys, vecs[1:])))
         print(f"  {dims:>4} boyut: " + "  ".join(f"{k}={s:.2f}" for k, s in ranking))
