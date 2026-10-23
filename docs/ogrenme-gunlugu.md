@@ -58,3 +58,10 @@
 - `/haberler/haberler/X` ile `/haberler/X` aynı sayfa (ikisi de 200, boyutlar neredeyse aynı) → normalizasyonla birleştirilecek.
 - Dil: sadece Türkçe; `gorsel-ve-videolar` hariç. Kararlar tarihleriyle kapsam.md'de.
 - Kara liste yerine beyaz liste: sitede yeni bir bölüm açılırsa kendiliğinden taramaya girmez.
+
+### Adım 2: Sitemap okuma (`crawler/sitemap.py`)
+- 1.135 kayıt → 1.108 birebir tekil → 997 normalizasyon sonrası → 778 kapsam içi; `data/urls.json`'a yazıldı.
+- Normalizasyon: https + `www.koc.com.tr` (yönlendirme isteğini atlamak için), `/haberler/haberler/` → `/haberler/`, sondaki `/`, query ve `#fragment` atılır.
+- Sitemap XML'i namespace kullanıyor → etiketleri `sm:url`, `sm:loc` diye aramak gerekiyor.
+- Güvenilmez XML için `defusedxml` (XXE ve "billion laughs" saldırılarına karşı); arayüzü ElementTree ile aynı.
+- Varsayım hatası: httpx'in openai ile geldiğini sanmıştım, 3.x sürümünde gelmiyor → ayrıca kuruldu.

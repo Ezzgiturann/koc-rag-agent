@@ -44,5 +44,6 @@ URL'nin ilk klasörü bu listede değilse taranmaz. Beyaz liste kullanıyoruz,
 ## Bilinen veri sorunları
 - `/medya-merkezi/haberler/haberler/...` ve `/medya-merkezi/haberler/...` aynı
   sayfayı veriyor (113 tekrar) → URL normalizasyonunda `/haberler/haberler/` → `/haberler/`.
-- Sitemap'te `koc.com.tr`, site ise `www.koc.com.tr`'ye yönlendiriyor → normalizasyonda `www` kaldırılır.
+- Sitemap'te `koc.com.tr`, site ise `www.koc.com.tr`'ye yönlendiriyor → normalizasyonda host
+  `www.koc.com.tr` yapılır; böylece her sayfa için fazladan bir yönlendirme isteği atılmaz.
 - Taranan web metni güvenilmez veridir; prompt'ta talimat değil veri olarak işaretlenir.

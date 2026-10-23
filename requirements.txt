@@ -3,3 +3,8 @@ openai==3.35.1                  # Gemini'nin OpenAI uyumlu ucuna da bununla bağ
 pymilvus[milvus-lite]==3.0.2    # Milvus istemcisi + yerel dosyada çalışan Milvus Lite
 tiktoken==0.14.0                # token sayımı
 python-dotenv==1.2.4            # .env dosyasını ortam değişkeni olarak yükler
+
+# 2. gün: crawler
+httpx==0.28.1                   # HTTP istemcisi (timeout, yönlendirme)
+trafilatura==2.3.1              # HTML'den ana metni çıkarır (menü/footer'ı atar)
+defusedxml==0.7.1               # güvenilmez XML'i (sitemap) güvenli ayrıştırır
