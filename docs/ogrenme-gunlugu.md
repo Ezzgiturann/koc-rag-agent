@@ -80,3 +80,17 @@
 - Tarih: haberlerde trafilatura doğru (URL yılıyla tutarlı), sabit sayfalarda site güncelleme tarihini buluyor → `None`.
 - Varsayım istisnası: 2 haberde sadece `/haberler/haberler/` hali çalışıyor; normalizasyon onları 404'e çevirdi.
 - Sonuç: 536 sayfa, ~2 milyon karakter → `data/pages.jsonl`.
+
+## 3. Gün — 2026-10-23: İndeksleme
+
+### Kararlar
+- Embedding boyutu 768 (`.env`: `EMBEDDING_DIM`), chunk 400 token + 60 token örtüşme.
+- Ölçüm: toplam 582.605 token, medyan sayfa 713 token, 536 sayfanın 328'i 512 token'dan uzun → chunking şart.
+- Gemini embedding ucu: toplu girdi ve `dimensions` destekli, vektörler normalize geliyor, `usage` raporlamıyor.
+
+### Adım 1: Embedding sezgisi (`indexing/embedding_demo.py`)
+- Tahmin: TR–EN benzerliği < 0,30 → gerçek **0,94**. Model kelimeyi değil anlamı kodluyor; dil neredeyse fark etmiyor.
+- Tahmin: ilgisiz cümle ≈ 0 → gerçek **0,62**. Skorlar sıfırdan başlamıyor; sabit eşik işe yaramaz, sıralama ve skor farkı önemli.
+- Sorguda "Koç" geçtiği için "Koç Topluluğu'nun enerji şirketi" cümlesi "Tüpraş rafinerisi"nin önüne geçti → chunk'lara başlık eklemek bağlam katar.
+- 768 ve 3072 boyut aynı sıralamayı verdi (fark ≤ 0,02) → 768 kararı doğrulandı.
+- Vektörler normalize olduğu için iç çarpım = cosine. Sorgu öneki skorları ~0,08 artırdı ama bu küçük testte sıralamayı değiştirmedi.
