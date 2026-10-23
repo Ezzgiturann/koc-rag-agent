@@ -50,3 +50,11 @@
 - 🔁 Maliyet hesabı örneği: 2.000 girdi + (300 çıktı + 200 düşünme) → (1.500 + 1.875) / 1M = 0,003375 $.
 - 🟡 `</kaynak>` silinmezse saldırgan etiketi erken kapatıp veri alanından "kaçar".
 - 🔁 Tek bir başarılı injection testi güvenlik kanıtı değildir; savunma katmanlıdır.
+
+## 2. Gün — 2026-10-23: Crawler
+
+### Adım 1: Kapsam (`docs/kapsam.md`)
+- Sitemap analizi: 1.135 kayıt → tekilleştirme ve filtre sonrası ~778 Türkçe URL (~13 dk tarama).
+- `/haberler/haberler/X` ile `/haberler/X` aynı sayfa (ikisi de 200, boyutlar neredeyse aynı) → normalizasyonla birleştirilecek.
+- Dil: sadece Türkçe; `gorsel-ve-videolar` hariç. Kararlar tarihleriyle kapsam.md'de.
+- Kara liste yerine beyaz liste: sitede yeni bir bölüm açılırsa kendiliğinden taramaya girmez.
