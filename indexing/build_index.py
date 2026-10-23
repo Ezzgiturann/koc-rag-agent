@@ -33,10 +33,7 @@ def create_collection(client: MilvusClient, model: str, dims: int) -> None:
     if client.has_collection(COLLECTION):
         client.drop_collection(COLLECTION)  # baştan kur: eski/yarım veri kalmasın
 
-    # Açıklamaya modeli yazıyoruz: arama tarafı farklı modelle sorgu atarsa fark edebilsin
-    schema = MilvusClient.create_schema(
-        auto_id=False, enable_dynamic_field=False, description=f"model={model} dim={dims}"
-    )
+    schema = MilvusClient.create_schema(auto_id=False, enable_dynamic_field=False)
     schema.add_field("chunk_id", DataType.VARCHAR, max_length=32, is_primary=True)  # ör. "a3f9c2e81b4d-2"
     schema.add_field("vector", DataType.FLOAT_VECTOR, dim=dims)
     schema.add_field("metin", DataType.VARCHAR, max_length=8192)  # bayt cinsinden; en uzun chunk ~2.200
@@ -51,6 +48,9 @@ def create_collection(client: MilvusClient, model: str, dims: int) -> None:
     index_params.add_index("vector", index_type="FLAT", metric_type="COSINE")
 
     client.create_collection(COLLECTION, schema=schema, index_params=index_params)
+    # Modeli koleksiyona not et: arama farklı modelle yapılırsa fark edebilsin.
+    # (Şema "description" alanı Milvus Lite'ta saklanmıyor; "properties" saklanıyor.)
+    client.alter_collection_properties(COLLECTION, properties={"embedding": f"model={model} dim={dims}"})
 
 
 def main() -> None:

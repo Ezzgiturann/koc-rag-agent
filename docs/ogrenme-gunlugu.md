@@ -125,3 +125,11 @@
 - Tuzaklar: yeni süreçte koleksiyon "released" → aramadan önce `load_collection()`; arama sonucunda birincil anahtar şemadaki adıyla (`chunk_id`) gelir, `id` değil.
 - Sağlama: 3 rastgele chunk kendi vektörüyle arandı → kendini 1,0000 skorla buldu. Veritabanı 7,2 MB (JSON önbelleği 30 MB; float32 farkı).
 - Koleksiyon açıklamasına model ve boyut yazıldı: arama farklı modelle yapılırsa fark edilebilsin.
+
+### Adım 5: İlk anlamsal arama (`retrieval/search.py`)
+- Soru → EmbeddingGemma (sorgu önekiyle) → Milvus FLAT arama → ilk 5 chunk (skor, başlık, tarih, URL, metin).
+- Model kontrolü: indeks hangi modelle kurulduysa sorgu da onunla yapılmalı. Şema `description` Milvus Lite'ta saklanmıyor → `properties` kullanıldı.
+- CEO sorusu: cevap 1. sıradaki chunk'ta. İhracat sorusu: 1. sırada güncel "%8", 4. sırada 2016 tarihli "yüzde 9" → aynı bilgi yıllara göre değişiyor; tarih önemli.
+- "2024 net kârı" sorusu: ilgili sayfalar geliyor ama hiçbirinde net kâr yok → "ilgili ama cevapsız" chunk'lar; model uydurmamalı.
+- Skorlar dar bir bantta (0,69–0,74): cevabı olan ve olmayan soru skorla ayırt edilemiyor.
+- gRPC bilgi mesajları: `GRPC_VERBOSITY=ERROR` pymilvus import edilmeden önce ayarlanmalı; `.env`'de işe yaramıyor.
