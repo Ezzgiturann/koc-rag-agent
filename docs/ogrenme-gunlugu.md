@@ -101,3 +101,11 @@
 - Medyan 400'ün altında: chunk bir sonraki cümle sığmayınca kapanıyor, son chunk'lar kısa kalıyor.
 - Token sayıları toplanabilir değil: cümleler ayrı sayılıp birleştirilince 13 chunk 400'ü aştı (max 422). Sınır katı değil hedef; embedding limiti 8.192 olduğundan zararsız.
 - Başlık chunk metnine değil embedding önekine (`title: ... | text: ...`) konacak; bilinen kusur: "A.Ş." gibi kısaltmalarda cümle bölünüyor.
+
+### Adım 3: Embedding üretme (`indexing/embedder.py`)
+- Paket sınırı denenerek bulundu: istek başına en fazla 100 metin (101 → 400 hatası).
+- Önbellek anahtarı = hash(model | boyut | önekli metin): model/boyut/önek değişirse eski vektör kendiliğinden geçersiz.
+- Ücretsiz katman limitleri hata mesajından okundu: **dakikada 100** ve **günde 1.000** embedding; paketteki her metin ayrı sayılıyor.
+- Dakikalık limit için 2. günün `RateLimiter`'ı yeniden kullanıldı (paketler arası 61 sn); backoff yedek güvenlik. Hata: son denemeden sonra boşuna bekleniyordu → düzeltildi.
+- Günlük kota doldu: 1.880 chunk'ın 800'ü bitti. JSON'da vektör başına ~17 KB (float32'de 3 KB olurdu).
+- Ders: hata mesajının tamamını yazdır; limitin türünü (dakika/gün) ve bekleme süresini API kendisi söylüyor.

@@ -14,6 +14,7 @@ import os
 from openai import OpenAI
 
 from agent.ask import get_client
+from indexing.embedder import as_document, as_query
 
 SENTENCES = {
     "S1": "Tüpraş, Türkiye'nin en büyük petrol rafinerisini işletiyor.",
@@ -25,14 +26,6 @@ SENTENCES = {
 }
 QUERY = "Koç'un petrol işleyen şirketi hangisi?"
 
-
-# gemini-embedding-2 "task_type" parametresi yerine metnin başına önek istiyor (dokümandan)
-def as_document(text: str, title: str = "none") -> str:
-    return f"title: {title} | text: {text}"
-
-
-def as_query(text: str) -> str:
-    return f"task: search result | query: {text}"
 
 
 def embed(client: OpenAI, texts: list[str], dims: int) -> list[list[float]]:
@@ -57,7 +50,7 @@ def main() -> None:
     keys = list(SENTENCES)
 
     # --- Deney 1: cümleler arası benzerlik matrisi (768 boyut, belge öneki) ---
-    vecs = embed(client, [as_document(SENTENCES[k]) for k in keys], dims=768)
+    vecs = embed(client, [as_document(SENTENCES[k], None) for k in keys], dims=768)
     doc_vecs = dict(zip(keys, vecs))
     print("Deney 1 — benzerlik matrisi (1 = aynı anlam)")
     print("      " + "  ".join(f"{k:>5}" for k in keys))
@@ -73,7 +66,7 @@ def main() -> None:
     # --- Deney 3: 768 ve 3072 boyut aynı sırayı veriyor mu? ---
     print("\nDeney 3 — boyut karşılaştırması (önekli sorgu)")
     for dims in (768, 3072):
-        vecs = embed(client, [as_query(QUERY)] + [as_document(SENTENCES[k]) for k in keys], dims=dims)
+        vecs = embed(client, [as_query(QUERY)] + [as_document(SENTENCES[k], None) for k in keys], dims=dims)
         ranking = rank(vecs[0], dict(zip(keys, vecs[1:])))
         print(f"  {dims:>4} boyut: " + "  ".join(f"{k}={s:.2f}" for k, s in ranking))
 
