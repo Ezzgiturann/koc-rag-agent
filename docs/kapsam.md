@@ -46,4 +46,17 @@ URL'nin ilk klasörü bu listede değilse taranmaz. Beyaz liste kullanıyoruz,
   sayfayı veriyor (113 tekrar) → URL normalizasyonunda `/haberler/haberler/` → `/haberler/`.
 - Sitemap'te `koc.com.tr`, site ise `www.koc.com.tr`'ye yönlendiriyor → normalizasyonda host
   `www.koc.com.tr` yapılır; böylece her sayfa için fazladan bir yönlendirme isteği atılmaz.
+- İstisna: 2 haberde (`2015/izin-silinmez`, `2016/bazi-borclar-vardir-odeyemezsin`)
+  sadece `/haberler/haberler/` hali çalışıyor, temiz hali 404 → şu an bu 2 sayfa eksik.
+- "Bizden Haberler Dergisi" sayfalarının (~275) HTML'i sadece ortak tanıtım metni içeriyor;
+  asıl içerik `cdn.koc.com.tr` üzerindeki PDF'lerde. İçerik hash'i kopyaları tek sayfaya indiriyor.
+  PDF günü için aday arşiv.
+- Sabit sayfalarda trafilatura'nın bulduğu tarih (2026-09-24) sitenin güncelleme tarihi;
+  bu sayfalarda `tarih` boş bırakılır. Haberlerde tarih URL'deki yılla doğrulanır.
 - Taranan web metni güvenilmez veridir; prompt'ta talimat değil veri olarak işaretlenir.
+
+## Tarama sonucu (2026-10-23)
+- 778 URL → 776 indirildi (2 × 404), 243 MB ham HTML
+- Metin çıkarma: 235 içerik tekrarı + 5 çok kısa (<200 karakter) atıldı → **536 sayfa**
+- 363 haber (1999–2026; 361'i tam tarihli), 133 tarihsiz sabit sayfa
+- Toplam ~2 milyon karakter; sayfa başına medyan 2.449 karakter

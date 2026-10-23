@@ -72,3 +72,11 @@
 - Ham HTML `data/raw/<sha256[:16]>.html` olarak önbellekleniyor; tekrar çalıştırınca diskteki sayfalar atlanıyor (20 önbellekte, 3 yeni).
 - Hata olursa kaydedip devam; üst üste 5 hata → dur. Her deneme `data/fetch_log.jsonl`'a yazılıyor.
 - `final_url` = istenen URL → `www` normalizasyonu sayesinde hiç yönlendirme yok.
+
+### Adım 4: Metin çıkarma (`crawler/extract.py`) ve tam tarama
+- Tam tarama: 776/778 sayfa, 2 × 404, hiç robots engeli yok; ~13 dk, 243 MB.
+- trafilatura ~320 KB HTML'den 0,2–27 KB temiz metin çıkarıyor (%99+ gürültü atılıyor).
+- İçerik hash'i 235 kopyayı yakaladı: "Bizden Haberler Dergisi" sayfaları aynı şablon metni taşıyor, asıl içerik PDF'te. URL normalizasyonu bunu asla yakalayamazdı.
+- Tarih: haberlerde trafilatura doğru (URL yılıyla tutarlı), sabit sayfalarda site güncelleme tarihini buluyor → `None`.
+- Varsayım istisnası: 2 haberde sadece `/haberler/haberler/` hali çalışıyor; normalizasyon onları 404'e çevirdi.
+- Sonuç: 536 sayfa, ~2 milyon karakter → `data/pages.jsonl`.
