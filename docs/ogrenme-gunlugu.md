@@ -94,3 +94,10 @@
 - Sorguda "Koç" geçtiği için "Koç Topluluğu'nun enerji şirketi" cümlesi "Tüpraş rafinerisi"nin önüne geçti → chunk'lara başlık eklemek bağlam katar.
 - 768 ve 3072 boyut aynı sıralamayı verdi (fark ≤ 0,02) → 768 kararı doğrulandı.
 - Vektörler normalize olduğu için iç çarpım = cosine. Sorgu öneki skorları ~0,08 artırdı ama bu küçük testte sıralamayı değiştirmedi.
+
+### Adım 2: Chunking (`indexing/chunker.py`)
+- En küçük birim cümle: paragraf → cümle → 400 token'a kadar paketle; yeni chunk önceki chunk'ın son cümleleriyle (≤60 token) başlar.
+- 536 sayfa → 1.880 chunk (1 sn); medyan 369, ortalama 331 token; örtüşme toplam token'ı %6,8 artırdı (582.605 → 622.047).
+- Medyan 400'ün altında: chunk bir sonraki cümle sığmayınca kapanıyor, son chunk'lar kısa kalıyor.
+- Token sayıları toplanabilir değil: cümleler ayrı sayılıp birleştirilince 13 chunk 400'ü aştı (max 422). Sınır katı değil hedef; embedding limiti 8.192 olduğundan zararsız.
+- Başlık chunk metnine değil embedding önekine (`title: ... | text: ...`) konacak; bilinen kusur: "A.Ş." gibi kısaltmalarda cümle bölünüyor.
