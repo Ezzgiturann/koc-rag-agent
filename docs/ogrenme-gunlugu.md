@@ -65,3 +65,10 @@
 - Sitemap XML'i namespace kullanıyor → etiketleri `sm:url`, `sm:loc` diye aramak gerekiyor.
 - Güvenilmez XML için `defusedxml` (XXE ve "billion laughs" saldırılarına karşı); arayüzü ElementTree ile aynı.
 - Varsayım hatası: httpx'in openai ile geldiğini sanmıştım, 3.x sürümünde gelmiyor → ayrıca kuruldu.
+
+### Adım 3: Sayfa indirici (`crawler/fetcher.py`)
+- robots.txt'yi kendi User-Agent'ımızla indirip `RobotFileParser.parse()`'a veriyoruz; her URL'den önce `can_fetch()` kontrolü.
+- `RateLimiter`: `time.monotonic()` ile iki istek arası en az 1 sn; 20 sayfa + robots.txt = 20,5 sn, kayıtlardaki aralık tam 1,0 sn.
+- Ham HTML `data/raw/<sha256[:16]>.html` olarak önbellekleniyor; tekrar çalıştırınca diskteki sayfalar atlanıyor (20 önbellekte, 3 yeni).
+- Hata olursa kaydedip devam; üst üste 5 hata → dur. Her deneme `data/fetch_log.jsonl`'a yazılıyor.
+- `final_url` = istenen URL → `www` normalizasyonu sayesinde hiç yönlendirme yok.
