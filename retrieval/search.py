@@ -7,9 +7,10 @@
 import os
 import sys
 
-# Milvus Lite'ın gRPC "fork" bilgi mesajlarını gizle. pymilvus import edilmeden ÖNCE
-# ayarlanmalı (gRPC ayarı yüklenirken okur); bu yüzden .env'de işe yaramıyor.
-os.environ.setdefault("GRPC_VERBOSITY", "ERROR")
+# Milvus Lite'ın gRPC mesajlarını gizle ("fork" bilgisi, boşta kalınca "GOAWAY too_many_pings").
+# GOAWAY E (hata) seviyesinde geldiği için ERROR yetmiyor; NONE hepsini kapatır (zararsız mesajlar).
+# pymilvus import edilmeden ÖNCE ayarlanmalı (gRPC ayarı yüklenirken okur); bu yüzden .env'de işe yaramıyor.
+os.environ.setdefault("GRPC_VERBOSITY", "NONE")
 
 from openai import OpenAI
 from pymilvus import MilvusClient

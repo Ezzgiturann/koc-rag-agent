@@ -237,3 +237,10 @@
 - "Peki 2016'da bu oran neydi?" → `ara("Koç Topluluğu Türkiye ihracatı yüzde", 2016–2016)`: konu geçmişten, dönem sorudan; ilk sonuç yetersizken bir kez yeniden aradı. Doğru: ~%9.
 - "Bu bilgiyi kim açıklamış?" → iki tur geriye çözüp `"ihracat oranı yüzde 9 2016"` aradı; atıfsız geçmişe rağmen doğru haber: Ömer M. Koç, TİM töreni. Sabit RAG bu soruyu olduğu gibi arardı (ne konu ne dönem var).
 - Zayıflık sürüyor: "bugün/güncel" denince yıl filtresini kendiliğinden kullanmıyor → 2026 %8'e ulaşmadı.
+
+### Adım 6: Serbest sorulardan gelen düzeltmeler (kural 3, 2 yeni test sorusu, gRPC logu)
+- Kullanıcının serbest soruları test setinin göremediği hataları buldu: "sahibi kim" → model "kurucu" diye aradı, cevap ("çoğunluk hissesi Koç Ailesi, %26,9 halka açık" — "Neden Koç Holding?") hiç gelmedi; "kaç firması var" → toplam yok ama "10 halka açık şirket" kaynaktaydı, katı kural 3 ("yalnızca 'yok' yaz") söyletmedi.
+- Kural 3 gevşetildi: önce "tam cevap yok" de, sonra DOĞRUDAN ilgili kısmi bilgiyi atıfla ekle; soruyu cevaplamayan konu bilgisini ekleme. Test önce yazıldı (eşanlamlı + kısmi cevap; 10 soru). Sonuç: kısmi cevap agent ✓ (RAG ✗: tek aramada sayfa ilk 5'te yok, ama 1999/2002 şirket sayılarını kısmi bilgi olarak verdi); cevapsız soru ikisinde de ✓ kaldı (gerileme yok).
+- Eşanlamlı soru ikisinde de ✗: kural değil arama sorunu ("sahip" ≠ "hisse/halka açık"). Model ilk makul sonuçta durdu; ciro sorusunda da aynı: 2024 (65,8 milyar $) dedi, korpustaki 2025 (64,3 milyar $, 2026-02-11) haberini bulmadı. Agent hatalarının ortak deseni: erken durma.
+- Aynı soru + aynı prompt iki çalıştırmada farklı cevap verdi (bir "yok", bir "10 halka açık") → tek çalıştırmayla prompt etkisi ölçülemez. Uzun açık süreç eski kodu çalıştırır: değişiklik sonrası yeniden başlat.
+- `GRPC_VERBOSITY=NONE`: GOAWAY E (hata) seviyesinde geldiği için ERROR ayarı gizlemiyordu. Toplam: RAG 7/10, agent 8/10; agent ~2 kat token/maliyet ($0,0187 – $0,0094).
