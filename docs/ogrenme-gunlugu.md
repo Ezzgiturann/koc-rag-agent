@@ -149,3 +149,10 @@
 - Vektör baseline: Hit@1 0,64 · Hit@5 0,92 · MRR 0,738. Tür bazında Hit@1: genel 0,80 · parafraz 0,50 · **terim 0,33** — beklenenin tersine en zayıf tür terim.
 - Tahminler: "en zayıf parafraz" ✗ (terim); "koordinatör sorusu ilk 5'e girer" ✗ (başlığa bakınca bile 7.); "Fuel Oil'in adı geçen hâli daha iyi" ✗ — ama karşılaştırma adil değildi: iki sorunun kanıtı farklıydı (rakam vs. proje adı).
 - Kanıt listesi yine eksikti: "2,7 milyar" yanında "toplam 3 milyar dolar" da geçerli cevap → eklendi. Ders tekrarı: başarısız örneklere bakmadan skora güvenme.
+
+### Adım 3: BM25 (`retrieval/bm25.py`)
+- Kendi kodumuz: ters indeks (kelime → {chunk: tekrar sayısı}), IDF (Lucene biçimi, negatif olmaz), k1=1,5 TF doygunluğu, b=0,75 uzunluk normalizasyonu. Başlık + metin indekslendi.
+- Türkçe tuzaklar: `"İ".lower()` görünmez nokta bırakıyor → önce İ→i, I→ı. `\w+` ile bölme kesme işaretini ayırıcı yapıyor (Suna'nın → suna + nın).
+- Hit@5: vektör 0,92 · BM25 0,76 · BM25+F5 0,80. Ama `terim` türünde BM25 1,00 (vektör 0,83); `parafraz`ta 0,50–0,75 (vektör 1,00). Vektörün ilk 10'da bulamadığı "Ekonomik Araştırmalar Koordinatörü"nü BM25 1. sırada buldu.
+- Tamamlayıcılık: vektör ve F5'in ilk 5'lerinin birleşimi 25/25 soruyu kapsıyor → hibrit aramanın (RRF) üst sınırı. Zorluk: 10 adaydan doğru 5'i seçmek.
+- F5 artı/eksi: "yatırımcılarla ilişkilerden" → `yatır`/`ilişk` doğru sayfayı buldu (vektörde 7., F5'te 2.); ama "yatırımcı" ile "yatırım" birleşti, idf 6,6 → 1,2 (over-stemming). Soru kelimeleri ("kimdir" idf 8,2) en yüksek puanı alıyor → stopword adayı.

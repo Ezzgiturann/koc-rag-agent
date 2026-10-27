@@ -22,6 +22,7 @@ from pathlib import Path
 from retrieval.search import check_index_model, search  # GRPC ayarı için pymilvus'tan önce
 
 from indexing.build_index import COLLECTION, get_milvus_client
+from retrieval.bm25 import BM25Index, load_chunks
 from indexing.embedder import get_embedding_client
 
 QUESTIONS_PATH = Path("eval/retrieval_sorulari.json")
@@ -109,8 +110,18 @@ def main() -> None:
     def vector_search(question: str, k: int) -> list[dict]:
         return search(milvus, emb_client, question, top_k=k)
 
-    print("Arama: vektör (EmbeddingGemma + Milvus FLAT)\n")
-    report(evaluate(vector_search, questions))
+    chunks = load_chunks()
+    bm25_plain = BM25Index(chunks, stem=False)
+    bm25_f5 = BM25Index(chunks, stem=True)
+
+    searches: dict[str, SearchFn] = {
+        "vektör (EmbeddingGemma + Milvus FLAT)": vector_search,
+        "BM25 (ek işlemi yok)": bm25_plain.search,  # metot da SearchFn imzasına uyuyor
+        "BM25 (F5: ilk 5 harf)": bm25_f5.search,
+    }
+    for name, search_fn in searches.items():
+        print(f"\n===== Arama: {name}\n")
+        report(evaluate(search_fn, questions))
     milvus.close()
 
 
