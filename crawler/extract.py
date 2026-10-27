@@ -31,10 +31,17 @@ NOISE_LINES = {
 }
 
 
-def clean_title(title: str | None) -> str:
-    """Tüm sayfalarda tekrar eden 'Koç Holding | ' önekini atar."""
-    title = (title or "").strip()
-    return title.removeprefix(TITLE_PREFIX).strip()
+def clean_title(title: str | None, url: str) -> str:
+    """Başlığı temizler: 'Koç Holding | ' öneki, HTML etiketleri (<br />), fazla boşluk.
+
+    Başlık boş kalırsa URL'nin son parçasından üretir (2 sayfada başlık yalnızca 'Koç Holding |').
+    """
+    title = re.sub(r"<[^>]+>", " ", title or "")  # <br />, <div> gibi etiketler → boşluk
+    title = " ".join(title.split())  # art arda boşlukları teke indir
+    title = title.removeprefix(TITLE_PREFIX.strip()).strip()  # sonda boşluk olmasa da eşleşsin
+    if not title:
+        title = url.rstrip("/").rsplit("/", 1)[-1].replace("-", " ").capitalize()
+    return title
 
 
 def pick_date(extracted_date: str | None, url: str) -> str | None:
@@ -87,7 +94,7 @@ def extract_page(html: str, url: str) -> dict | None:
         return None
     return {
         "url": url,
-        "baslik": clean_title(doc.title),
+        "baslik": clean_title(doc.title, url),
         "tarih": pick_date(doc.date, url),
         "metin": text,
     }

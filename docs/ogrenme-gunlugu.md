@@ -176,3 +176,9 @@
 - Eski kanıt (%8) eskimiş sabit sayfayı ödüllendiriyordu → kanıt 2021–2025 "yüzde 7" biçimleriyle değişti; soruya `not` alanıyla gerekçe ve kontrol tarihi eklendi.
 - Yeni Hit@5: vektör 0,92 → 0,88; hibrit 0,96 → 0,92. Önceki skorların bir kısmı ölçüm hatasıydı; hibrit yine en iyi.
 - "Dış satım" ↔ "ihracat": soru metnin kelimesini kullanmayınca BM25 katkı veremiyor; aynı bilgi "ihracat" diye sorulunca bulunuyor.
+
+### Adım 7: Başlık temizliği ve yeniden indeksleme
+- Envanter: 44 sayfada `<br />`, 1 sayfada `<div>`, 2 sayfada başlık yalnızca "Koç Holding |" (sonda boşluk olmadığı için `removeprefix("Koç Holding | ")` eşleşmemişti).
+- `clean_title(title, url)`: etiketleri sil, boşlukları normalize et, öneki boşluksuz eşleştir; boş kalırsa URL'nin son parçasından başlık üret.
+- Zincir yeniden çalıştı: extract → chunker → embedder → build_index. Embedding önbelleği sayesinde 1.860 chunk'tan yalnızca başlığı değişen 197'si yeniden hesaplandı (11 sn).
+- Etki: vektör Hit@1 0,60 → 0,64 (başlık embedding önekinde); diğer metrikler aynı. Temizlik asıl olarak prompt'taki kaynak etiketlerini ve okunurluğu düzeltti.
