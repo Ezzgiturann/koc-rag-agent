@@ -231,3 +231,9 @@
 - Karşılaştırma sorusunda ikisi de ✗ ama farklı: RAG "kaynaklarda yok" (vazgeçti), agent 9 → 7 seyrini doğru verdi, yalnız 2026 %8 eksik. İkili metrik kısmi doğruluğu gizliyor.
 - Agent bu çalıştırmada hiç çoklu arama yapmadı (önceki çalıştırmada aynı soruya 2); çok parçalı soruyu tek birleşik sorguyla çözdü. Davranış deterministik değil → tek çalıştırmayla hüküm verilmez.
 - Ders: retrieval güçlüyse agent'ın avantajı küçülür; kalan fark zor sorular (yıl filtresi: cevapsız soruda kendiliğinden 2024–2025) ve aramasız mesajlar (selamlaşma 769'a karşı 2.560 token). İki sistem de injection'a direndi.
+
+### Adım 5: Konuşma geçmişi (takip soruları)
+- Sıkıştırılmış geçmiş: yalnızca soru + cevap metni (araç sonuçları değil), son 3 çift. Eski cevaplardaki [n] silinir (yeni soruda numaralar sıfırdan başlar); kural 11: geçmiş yalnızca bağlam, bilgi yeniden aranır. `--sohbet` ile terminalden etkileşimli mod.
+- "Peki 2016'da bu oran neydi?" → `ara("Koç Topluluğu Türkiye ihracatı yüzde", 2016–2016)`: konu geçmişten, dönem sorudan; ilk sonuç yetersizken bir kez yeniden aradı. Doğru: ~%9.
+- "Bu bilgiyi kim açıklamış?" → iki tur geriye çözüp `"ihracat oranı yüzde 9 2016"` aradı; atıfsız geçmişe rağmen doğru haber: Ömer M. Koç, TİM töreni. Sabit RAG bu soruyu olduğu gibi arardı (ne konu ne dönem var).
+- Zayıflık sürüyor: "bugün/güncel" denince yıl filtresini kendiliğinden kullanmıyor → 2026 %8'e ulaşmadı.
