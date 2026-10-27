@@ -18,6 +18,10 @@ def get_client() -> OpenAI:
     return OpenAI(
         api_key=os.environ["GEMINI_API_KEY"],  # yoksa KeyError: anahtar eksik demektir
         base_url=os.environ["LLM_BASE_URL"],  # isteklerin gideceği sunucu
+        # Varsayılan 600 sn; sunucu cevap vermezse dakikalarca donmak yerine hata verelim
+        timeout=60,
+        # 429/5xx ve zaman aşımında üstel beklemeyle (backoff) otomatik tekrar
+        max_retries=3,
     )
 
 

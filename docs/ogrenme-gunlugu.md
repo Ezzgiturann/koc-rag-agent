@@ -133,3 +133,12 @@
 - "2024 net kârı" sorusu: ilgili sayfalar geliyor ama hiçbirinde net kâr yok → "ilgili ama cevapsız" chunk'lar; model uydurmamalı.
 - Skorlar dar bir bantta (0,69–0,74): cevabı olan ve olmayan soru skorla ayırt edilemiyor.
 - gRPC bilgi mesajları: `GRPC_VERBOSITY=ERROR` pymilvus import edilmeden önce ayarlanmalı; `.env`'de işe yaramıyor.
+
+## 4. Gün — 2026-10-27: Uçtan uca RAG ve hibrit arama
+
+### Adım 1: Uçtan uca RAG (`agent/rag.py`)
+- Retrieve → augment → generate: `search()` ilk 5 chunk'ı getirir, her biri `<kaynak id tarih url>` etiketine sarılır, model numaralı atıfla (`[1]`) cevaplar. Soru başına ~2.550 girdi token'ı (tahmin ~2.000; etiketler ve Türkçe tokenizasyon payı).
+- Atıflar elle doğrulandı: CEO cevabının atıf verdiği 4 chunk'ta da "Çakıroğlu" geçiyor; adı geçmeyen 2009 chunk'ına atıf yok. İhracatta "%8'in üzerinde" (tarihsiz sayfa) ve "yaklaşık yüzde 9" (2016) doğru ayrıldı.
+- 2024 net kâr: model "kaynaklarda yok" dedi; 2024 sonuç haberlerinde "kâr" kelimesi hiç geçmiyor → doğru ret. 2004'ün "Net Karı %71" chunk'ı tuzağına düşmedi.
+- Kusurlar: (a) 60 token örtüşme yüzünden aynı cümle iki chunk'ta → [4][5] aynı bilgi, boşa token; (b) "tarihsiz" sayfayı model güncel saydı — doğru ama şans; (c) başlıklarda `<br />` artığı.
+- Altyapı: Gemini 3.8/3.7 Flash aşırı yoğundu (503, zaman aşımı); `openai` istemcisinin varsayılan 600 sn zaman aşımı programı dondurdu → `timeout=60, max_retries=3`. Geçici olarak `.env`'de `gemini-3.5-flash-lite`'a geçildi; kod değişmedi.

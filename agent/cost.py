@@ -17,6 +17,8 @@ from agent.ask import ask, get_client
 # Not: Gemini'de "düşünme" token'ları çıktı fiyatından faturalanır.
 PRICES: dict[str, dict[str, float]] = {
     "gemini-3.8-flash": {"input": 0.75, "output": 3.75},
+    # 3.8 Flash aşırı yoğun olduğunda yedek model (kontrol tarihi 2026-10-27)
+    "gemini-3.5-flash-lite": {"input": 0.30, "output": 2.50},
 }
 
 
