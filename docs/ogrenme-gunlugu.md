@@ -203,3 +203,10 @@
 - "Dış satım" sorusunda model sorguyu kendisi zenginleştirdi: `"Koç Topluluğu ihracat payı türkiye dış satım"` → BM25'in 4. gün bulamadığı "ihracat" kelimesi artık sorguda. "Merhaba"da hiç araç çağırmadı (`finish_reason=stop`).
 - Dokümanda yazmayan bulgu: Gemini 3 her araç çağrısına `extra_content.google.thought_signature` ekliyor; silip geri gönderince **400** ("Function call is missing a thought_signature"). Modelin mesajını `model_dump(exclude_none=True)` ile olduğu gibi geri göndermek bu yüzden şart; mesajı elle kurmak kodu bozardı.
 - 3.8 Flash hâlâ 503 (yoğun); 3.5 Flash-Lite ile devam. Küçük sadakat sorunu: model kaynakta olmayan "yaklaşık" kelimesini ekledi.
+
+### Adım 2: Arama aracı (`agent/tools.py`)
+- `ara(sorgu)` = 4. günün akışı (hibrit → reranker → ardışık chunk birleştirme). Şema ve çalıştırma kodu aynı dosyada; açıklama modele aracın NASIL kullanılacağını da söylüyor (parça başına ayrı arama, yetersizse eşanlamlıyla tekrar).
+- Kaynak numaraları tüm aramalar boyunca tek sayaçtan: 2. arama [6]'dan devam etti, daha önce görülen kaynaklar eski numarasını ([3], [5]) korudu.
+- Hatalar istisna değil metin olarak modele döner (bozuk JSON, olmayan araç, boş sorgu) → döngü çökmez, model düzeltebilir. Sorgu 200 karakterle sınırlı.
+- `format_source()` `rag.py`'den ayrıldı; etiketleme/güvenlik kuralları tek yerde.
+- Bulgu: sorgudaki yıl filtre değil sıradan kelime ("ihracat payı 2016" → 1999, 2002 haberleri) → ileride `yil` metadata filtresi adayı; önce karşılaştırma sorusunda etkisini ölç.

@@ -79,17 +79,19 @@ def merge_adjacent(chunks: list[dict]) -> list[dict]:
     return merged
 
 
+def format_source(number: int, chunk: dict) -> str:
+    """Tek bir chunk'ı numaralı <kaynak> etiketine sarar (agent/tools.py de kullanıyor)."""
+    # Metin kapanış etiketi içerirse etiketten "kaçıp" talimat gibi görünebilir; etkisizleştir
+    text = chunk["metin"].replace("</kaynak>", "")
+    # Başlıktaki tırnak, etiket özniteliğini bozmasın
+    title = chunk["baslik"].replace('"', "'")
+    date = chunk["tarih"] or "tarihsiz"
+    return f'<kaynak id="{number}" baslik="{title}" tarih="{date}" url="{chunk["url"]}">\n{text}\n</kaynak>'
+
+
 def format_sources(chunks: list[dict]) -> str:
-    """Chunk'ları numaralı <kaynak> etiketlerine sarar."""
-    blocks = []
-    for i, c in enumerate(chunks, start=1):
-        # Metin kapanış etiketi içerirse etiketten "kaçıp" talimat gibi görünebilir; etkisizleştir
-        text = c["metin"].replace("</kaynak>", "")
-        # Başlıktaki tırnak, etiket özniteliğini bozmasın
-        title = c["baslik"].replace('"', "'")
-        date = c["tarih"] or "tarihsiz"
-        blocks.append(f'<kaynak id="{i}" baslik="{title}" tarih="{date}" url="{c["url"]}">\n{text}\n</kaynak>')
-    return "\n\n".join(blocks)
+    """Chunk'ları sırayla 1'den numaralayıp <kaynak> etiketlerine sarar."""
+    return "\n\n".join(format_source(i, c) for i, c in enumerate(chunks, start=1))
 
 
 def build_messages(question: str, chunks: list[dict]) -> list[dict]:
