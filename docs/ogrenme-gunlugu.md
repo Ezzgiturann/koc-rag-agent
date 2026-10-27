@@ -170,3 +170,9 @@
 - İhracat cevabı %8 → "yüzde 7'nin üzerinde": BM25 2025 tarihli bir haber getirdi; model "en yeni tarihli kaynak" kuralını doğru uyguladı. Sabahki %8 kaynağa sadıktı ama güncel değildi.
 - Test setinde eskimiş beklenti: dış satım sorusunun kanıtı yalnızca %8 biçimleri → zamana bağlı olgularda beklenen cevabın da tarihi olmalı.
 - Gürültü: Ekonomik Araştırmalar sorusunda 5 kaynaktan 1'i işe yarıyor (BM25'ten ilgisiz özgeçmiş, vektörden "atamalar" haberleri) → reranker için gerekçe.
+
+### Adım 6: Eskimiş test beklentisini düzeltme
+- Korpustaki tüm "ihracat payı" ifadeleri tarihleriyle listelendi: 1999 %7 → 2005 %9 → 2013–14 %10 → 2016–20 %9 → **2021–2025 ~%7**; tarihsiz Hakkında sayfaları %8 (güncellenmemiş).
+- Eski kanıt (%8) eskimiş sabit sayfayı ödüllendiriyordu → kanıt 2021–2025 "yüzde 7" biçimleriyle değişti; soruya `not` alanıyla gerekçe ve kontrol tarihi eklendi.
+- Yeni Hit@5: vektör 0,92 → 0,88; hibrit 0,96 → 0,92. Önceki skorların bir kısmı ölçüm hatasıydı; hibrit yine en iyi.
+- "Dış satım" ↔ "ihracat": soru metnin kelimesini kullanmayınca BM25 katkı veremiyor; aynı bilgi "ihracat" diye sorulunca bulunuyor.
