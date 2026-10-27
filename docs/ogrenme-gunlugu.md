@@ -163,3 +163,10 @@
 - Tarama (k ∈ 1–60, DEPTH ∈ 5/10/20): belirleyici DEPTH, k değil. DEPTH=5'te Hit@5 her k'da 0,96 → tek şanslı nokta değil, ayara duyarsız bölge seçildi; k=60 kaldı.
 - Sonuç (vektör → hibrit): Hit@5 0,92 → 0,96; terim 0,83 → 1,00; parafraz 1,00 korundu. Ama Hit@1 0,64 → 0,60: doğru chunk ilk 5'e giriyor, 1. sıraya değil.
 - Plan gerekçem ("7. sıradaki de girsin" → derin liste) yanlıştı; ölçmeden doğru sanılan bir varsayımdı. 25 soruda 0,92 → 0,96 tek soru farkı: sinyal, kanıt değil.
+
+### Adım 5: RAG'i hibrit aramaya bağlama (`agent/rag.py`)
+- Değişiklik yalnızca retrieve satırı: `search` → `hybrid_search`; prompt ve LLM çağrısı aynı (ortak chunk alanları sayesinde `format_sources()` değişmedi). BM25 indeksi program başında bir kez kurulur.
+- Ekonomik Araştırmalar Koordinatörü: "Ahmet Çimenoğlu [4]" — kaynağı yalnızca BM25 buldu (vektör/BM25 sırası -/2). Vektör tabanlı RAG bu soruyu cevaplayamazdı.
+- İhracat cevabı %8 → "yüzde 7'nin üzerinde": BM25 2025 tarihli bir haber getirdi; model "en yeni tarihli kaynak" kuralını doğru uyguladı. Sabahki %8 kaynağa sadıktı ama güncel değildi.
+- Test setinde eskimiş beklenti: dış satım sorusunun kanıtı yalnızca %8 biçimleri → zamana bağlı olgularda beklenen cevabın da tarihi olmalı.
+- Gürültü: Ekonomik Araştırmalar sorusunda 5 kaynaktan 1'i işe yarıyor (BM25'ten ilgisiz özgeçmiş, vektörden "atamalar" haberleri) → reranker için gerekçe.

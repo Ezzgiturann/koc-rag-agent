@@ -1,6 +1,6 @@
-"""Uçtan uca RAG: soru → Milvus'ta arama → kaynaklı prompt → Gemini cevabı.
+"""Uçtan uca RAG: soru → hibrit arama (vektör + BM25, RRF) → kaynaklı prompt → Gemini cevabı.
 
-manual_rag.py'de kaynak metni elle kopyalamıştık; burada retrieval/search.py getiriyor.
+manual_rag.py'de kaynak metni elle kopyalamıştık; burada retrieval/hybrid.py getiriyor.
 
 Çalıştırma:
     python -m agent.rag "Koç Holding'in CEO'su kim?"
@@ -11,7 +11,7 @@ import os
 import sys
 
 # search.py pymilvus'tan önce GRPC_VERBOSITY'yi ayarlıyor; bu yüzden ilk import o olmalı
-from retrieval.search import check_index_model, search
+from retrieval.search import check_index_model
 
 from openai import OpenAI
 from pymilvus import MilvusClient
@@ -20,6 +20,8 @@ from agent.ask import get_client
 from agent.cost import estimate_cost
 from indexing.build_index import COLLECTION, get_milvus_client
 from indexing.embedder import get_embedding_client
+from retrieval.bm25 import BM25Index, load_chunks
+from retrieval.hybrid import hybrid_search
 
 SYSTEM_PROMPT = """\
 Sen Koç Holding hakkında soruları cevaplayan bir asistansın.
@@ -58,10 +60,10 @@ def build_messages(question: str, chunks: list[dict]) -> list[dict]:
 
 
 def answer(
-    llm: OpenAI, milvus: MilvusClient, emb_client: OpenAI, question: str, top_k: int = 5
+    llm: OpenAI, milvus: MilvusClient, emb_client: OpenAI, bm25: BM25Index, question: str, top_k: int = 5
 ) -> tuple[str, list[dict], dict]:
     """Soruyu cevaplar; (cevap, kullanılan chunk'lar, token kullanımı) döndürür."""
-    chunks = search(milvus, emb_client, question, top_k=top_k)  # 1) retrieve
+    chunks = hybrid_search(milvus, emb_client, bm25, question, top_k=top_k)  # 1) retrieve (vektör + BM25)
     messages = build_messages(question, chunks)  # 2) augment
     response = llm.chat.completions.create(  # 3) generate
         model=os.environ["CHAT_MODEL"],
@@ -76,6 +78,7 @@ def main() -> None:
         "Koç Holding'in CEO'su kim?",
         "Koç Topluluğu Türkiye ihracatının yüzde kaçını karşılıyor?",
         "Koç Holding'in 2024 yılı net kârı ne kadar?",  # indekste cevabı yok
+        "Koç Holding Ekonomik Araştırmalar Koordinatörü kimdir?",  # vektör araması bulamıyordu
     ]
 
     llm = get_client()
@@ -83,18 +86,20 @@ def main() -> None:
     milvus = get_milvus_client()
     check_index_model(milvus)
     milvus.load_collection(COLLECTION)
+    bm25 = BM25Index(load_chunks(), stem=True)  # bellekte ~1 sn'de kurulur
     model = os.environ["CHAT_MODEL"]
 
     for question in questions:
-        text, chunks, usage = answer(llm, milvus, emb_client, question)
+        text, chunks, usage = answer(llm, milvus, emb_client, bm25, question)
         thinking = usage["total_tokens"] - usage["prompt_tokens"] - usage["completion_tokens"]
         cost = estimate_cost(model, usage["prompt_tokens"], usage["completion_tokens"], thinking)
 
         print(f"=== Soru: {question}")
         print(f"\n{text}\n")
-        print("Kaynaklar:")
+        print("Kaynaklar (vektör sırası / BM25 sırası; '-' = o aramanın ilk 5'inde yok):")
         for i, c in enumerate(chunks, start=1):
-            print(f"  [{i}] ({c['skor']:.3f}) {c['baslik']} — {c['tarih'] or 'tarihsiz'}")
+            ranks = f"{c.get('vektor_sira', '-')}/{c.get('bm25_sira', '-')}"
+            print(f"  [{i}] ({ranks}) {c['baslik']} — {c['tarih'] or 'tarihsiz'}")
             print(f"      {c['url']}")
         print(f"[girdi {usage['prompt_tokens']} / çıktı {usage['completion_tokens']} / "
               f"düşünme {thinking} token, ${cost:.6f}]\n")
