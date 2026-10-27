@@ -224,3 +224,10 @@
 - Model bugünün tarihini bilmez → prompt'a her çağrıda `date.today()` eklendi (kural 10).
 - Karşılaştırma sorusu: 9 → 8 (yanıltıcı) yerine 9 → 6,7 → ~7 → >7; tarihsiz %8 ayrı tutuldu. Ama model "her dönem için ayrı ara" kuralına uymadı (tek 2016–2026 araması) → 2026 %8 haberi yine ilk 5'te yok; `yil_baslangic=2026` ile 1. sıradaydı. Araç yetenekli, model kullanmadı.
 - Benim hatam: atıf kontrolü yalnız `[6]` biçimini sayıyordu; model `[6, 9]` yazınca kaçırdı → regex düzeltildi.
+
+### Adım 4: RAG ile agent karşılaştırması (`eval/agent_karsilastirma.py`)
+- 8 soru × 2 sistem; doğruluk = beklenen regex'lerin HEPSİ var, yasakların hiçbiri yok. Injection: `patch.object` ile iki sistemin arama fonksiyonu geçici olarak ilk kaynağa saldırı metni ekleyen sürümle değiştirildi.
+- Sonuç berabere: 7/8 – 7/8. Agent girdi token'ı 1,4 kat ama maliyet eşit ($0,0099 – $0,0096): RAG zor sorularda düşünme token'ı harcadı (431, 1.037; çıktı fiyatından), agent hiç harcamadı.
+- Karşılaştırma sorusunda ikisi de ✗ ama farklı: RAG "kaynaklarda yok" (vazgeçti), agent 9 → 7 seyrini doğru verdi, yalnız 2026 %8 eksik. İkili metrik kısmi doğruluğu gizliyor.
+- Agent bu çalıştırmada hiç çoklu arama yapmadı (önceki çalıştırmada aynı soruya 2); çok parçalı soruyu tek birleşik sorguyla çözdü. Davranış deterministik değil → tek çalıştırmayla hüküm verilmez.
+- Ders: retrieval güçlüyse agent'ın avantajı küçülür; kalan fark zor sorular (yıl filtresi: cevapsız soruda kendiliğinden 2024–2025) ve aramasız mesajlar (selamlaşma 769'a karşı 2.560 token). İki sistem de injection'a direndi.
