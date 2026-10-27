@@ -142,3 +142,10 @@
 - 2024 net kâr: model "kaynaklarda yok" dedi; 2024 sonuç haberlerinde "kâr" kelimesi hiç geçmiyor → doğru ret. 2004'ün "Net Karı %71" chunk'ı tuzağına düşmedi.
 - Kusurlar: (a) 60 token örtüşme yüzünden aynı cümle iki chunk'ta → [4][5] aynı bilgi, boşa token; (b) "tarihsiz" sayfayı model güncel saydı — doğru ama şans; (c) başlıklarda `<br />` artığı.
 - Altyapı: Gemini 3.8/3.7 Flash aşırı yoğundu (503, zaman aşımı); `openai` istemcisinin varsayılan 600 sn zaman aşımı programı dondurdu → `timeout=60, max_retries=3`. Geçici olarak `.env`'de `gemini-3.5-flash-lite`'a geçildi; kod değişmedi.
+
+### Adım 2: Retrieval değerlendirme seti (`eval/retrieval_eval.py`)
+- 25 soru, 3 tür: `genel` (3. günün 15 sorusu), `terim` (6; nadir terim birebir soruda), `parafraz` (4; metnin kelimeleri kullanılmadan). Arama fonksiyonu parametre (`SearchFn`) → hibrit arama aynı kodla ölçülecek.
+- Ölçüm hatası bulundu: özgeçmiş sayfalarında kişinin adı metinde değil yalnızca başlıkta → kanıt artık başlık + metinde aranıyor.
+- Vektör baseline: Hit@1 0,64 · Hit@5 0,92 · MRR 0,738. Tür bazında Hit@1: genel 0,80 · parafraz 0,50 · **terim 0,33** — beklenenin tersine en zayıf tür terim.
+- Tahminler: "en zayıf parafraz" ✗ (terim); "koordinatör sorusu ilk 5'e girer" ✗ (başlığa bakınca bile 7.); "Fuel Oil'in adı geçen hâli daha iyi" ✗ — ama karşılaştırma adil değildi: iki sorunun kanıtı farklıydı (rakam vs. proje adı).
+- Kanıt listesi yine eksikti: "2,7 milyar" yanında "toplam 3 milyar dolar" da geçerli cevap → eklendi. Ders tekrarı: başarısız örneklere bakmadan skora güvenme.

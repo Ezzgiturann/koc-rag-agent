@@ -1,0 +1,29 @@
+[
+  {"tur": "genel", "soru": "Koç Grubu Afrika'da hangi beyaz eşya firmasını satın aldı?", "kanit": ["Defy"]},
+  {"tur": "genel", "soru": "Topluluğun 100. yılında kültür dalında ödüle layık görülen sanatçı kim?", "kanit": ["Canan Tolon"]},
+  {"tur": "genel", "soru": "Koç ile Microsoft'un genç mühendisleri yetiştirmek için başlattığı ortak programın adı ne?", "kanit": ["Ctrl+ Future"]},
+  {"tur": "genel", "soru": "Depremden sonra afetzedeler için geçici yaşam alanları kuruldu mu?", "kanit": ["Konteyner Kent"]},
+  {"tur": "genel", "soru": "Vehbi Koç Ödülü'nün parasal büyüklüğü ne kadar?", "kanit": ["100.000 dolar"]},
+  {"tur": "genel", "soru": "Holding, etik kurallara bağlılığı güçlendirmek için hangi yıllarda kapsamlı bir çalışma yürüttü?", "kanit": ["Uyum Projesi"]},
+  {"tur": "genel", "soru": "Brent petrolün varil fiyatı 2025'i hangi seviyede kapattı?", "kanit": ["62,6"]},
+  {"tur": "genel", "soru": "Çalışanlara veriyle çalışma becerisi kazandıran eğitimden kaç kişi yararlandı?", "kanit": ["Veri Okuryazarlığı"]},
+  {"tur": "genel", "soru": "Türkiye'nin ilk sanayi müzesi hangisidir?", "kanit": ["sanayi müzesi"]},
+  {"tur": "genel", "soru": "Arçelik'in Romanya'daki buzdolabı tesisi Japonya'da hangi ödülü aldı?", "kanit": ["TPM"]},
+  {"tur": "genel", "soru": "Üniversite kampüslerinde yapılan gençlik festivali ne zaman geri dönüyor?", "kanit": ["KoçFest"]},
+  {"tur": "genel", "soru": "Ram Dış Ticaret plastik hammadde alanında hangi küresel şirketle anlaştı?", "kanit": ["Louis Dreyfus"]},
+  {"tur": "genel", "soru": "Yapı Kredi hisse satışından sonra bankanın borsada işlem gören kısmı yüzde kaça çıktı?", "kanit": ["38,83"]},
+  {"tur": "genel", "soru": "Koç Topluluğu Türkiye'nin dış satımının ne kadarını gerçekleştiriyor?", "kanit": ["ihracatındaki yaklaşık %8", "ihracatının yaklaşık % 8", "ihracatının yüzde 8", "ihracatında %8"]},
+  {"tur": "genel", "soru": "Koç Holding'de yatırımcılarla ilişkilerden sorumlu koordinatör kim?", "kanit": ["Helin Çelikbilek"]},
+
+  {"tur": "terim", "soru": "Koç Holding'in Vergi Yönetimi Koordinatörü kim?", "kanit": ["Berna Bayındır"]},
+  {"tur": "terim", "soru": "Koç Holding Ekonomik Araştırmalar Koordinatörü kimdir?", "kanit": ["Ahmet Çimenoğlu"]},
+  {"tur": "terim", "soru": "Suna'nın Kızları Genel Koordinatörü kim?", "kanit": ["Burcu Gündüz Maşalacı"]},
+  {"tur": "terim", "soru": "Fuel Oil Dönüşüm Projesi'nin büyüklüğü kaç dolar?", "kanit": ["2,7 milyar", "2,7 Milyar", "3 milyar dolar"]},
+  {"tur": "terim", "soru": "Liseler Mesleğiyle Yarışıyor yarışması hangi projenin parçası?", "kanit": ["Meslek Lisesi Memleket Meselesi", "MLMM"]},
+  {"tur": "terim", "soru": "Token Finansal Teknolojiler, Odero markasıyla hangi ülkede ödeme kuruluşu lisansı aldı?", "kanit": ["Romanya"]},
+
+  {"tur": "parafraz", "soru": "Holding'in en üst düzey icra yöneticisi kim?", "kanit": ["Levent Çakıroğlu"]},
+  {"tur": "parafraz", "soru": "Dünyanın en büyük şirketleri listesine giren tek Türk firması hangisi?", "kanit": ["Fortune Global 500"]},
+  {"tur": "parafraz", "soru": "Teknik liselerde okuyan gençlere şirket çalışanlarının gönüllü rehberlik ettiği girişimin adı ne?", "kanit": ["Meslek Lisesi Memleket Meselesi", "MLMM", "Meslek Lisesi Koçları"]},
+  {"tur": "parafraz", "soru": "Kocaeli'deki petrol işleme tesisini ağır artıklardan daha değerli yakıtlar elde edebilir hale getiren yatırım hangisi?", "kanit": ["Fuel Oil Dönüşüm"]}
+]
