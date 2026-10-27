@@ -23,6 +23,7 @@ from retrieval.search import check_index_model, search  # GRPC ayarı için pymi
 
 from indexing.build_index import COLLECTION, get_milvus_client
 from retrieval.bm25 import BM25Index, load_chunks
+from retrieval.hybrid import hybrid_search
 from indexing.embedder import get_embedding_client
 
 QUESTIONS_PATH = Path("eval/retrieval_sorulari.json")
@@ -118,6 +119,7 @@ def main() -> None:
         "vektör (EmbeddingGemma + Milvus FLAT)": vector_search,
         "BM25 (ek işlemi yok)": bm25_plain.search,  # metot da SearchFn imzasına uyuyor
         "BM25 (F5: ilk 5 harf)": bm25_f5.search,
+        "hibrit (vektör + BM25 F5, RRF)": lambda q, k: hybrid_search(milvus, emb_client, bm25_f5, q, top_k=k),
     }
     for name, search_fn in searches.items():
         print(f"\n===== Arama: {name}\n")

@@ -156,3 +156,10 @@
 - Hit@5: vektör 0,92 · BM25 0,76 · BM25+F5 0,80. Ama `terim` türünde BM25 1,00 (vektör 0,83); `parafraz`ta 0,50–0,75 (vektör 1,00). Vektörün ilk 10'da bulamadığı "Ekonomik Araştırmalar Koordinatörü"nü BM25 1. sırada buldu.
 - Tamamlayıcılık: vektör ve F5'in ilk 5'lerinin birleşimi 25/25 soruyu kapsıyor → hibrit aramanın (RRF) üst sınırı. Zorluk: 10 adaydan doğru 5'i seçmek.
 - F5 artı/eksi: "yatırımcılarla ilişkilerden" → `yatır`/`ilişk` doğru sayfayı buldu (vektörde 7., F5'te 2.); ama "yatırımcı" ile "yatırım" birleşti, idf 6,6 → 1,2 (over-stemming). Soru kelimeleri ("kimdir" idf 8,2) en yüksek puanı alıyor → stopword adayı.
+
+### Adım 4: Hibrit arama — RRF (`retrieval/hybrid.py`)
+- RRF: her listede 1 / (k + sıra) puan, chunk_id üzerinden toplanır; skor ölçeği farkı (kosinüs 0–1, BM25 0–30) sorun olmaz. Liste sayısından bağımsız ~6 satır.
+- İlk deneme (k=60, DEPTH=20) vektörden kötü çıktı: Hit@5 0,88 < 0,92. Neden: iki listenin 19./20. sırasındaki chunk (1/79 + 1/80 = 0,025) tek listede 1. olanı (1/61 = 0,016) geçiyor — zayıf "ortaklık" güçlü tekil sıradan çok puan alıyor.
+- Tarama (k ∈ 1–60, DEPTH ∈ 5/10/20): belirleyici DEPTH, k değil. DEPTH=5'te Hit@5 her k'da 0,96 → tek şanslı nokta değil, ayara duyarsız bölge seçildi; k=60 kaldı.
+- Sonuç (vektör → hibrit): Hit@5 0,92 → 0,96; terim 0,83 → 1,00; parafraz 1,00 korundu. Ama Hit@1 0,64 → 0,60: doğru chunk ilk 5'e giriyor, 1. sıraya değil.
+- Plan gerekçem ("7. sıradaki de girsin" → derin liste) yanlıştı; ölçmeden doğru sanılan bir varsayımdı. 25 soruda 0,92 → 0,96 tek soru farkı: sinyal, kanıt değil.
