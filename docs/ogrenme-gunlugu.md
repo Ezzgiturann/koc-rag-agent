@@ -195,3 +195,11 @@
 - Sonuç: Hit@1 0,60 → **0,84**, Hit@5 0,96 → **1,00**, MRR 0,746 → 0,910; terim Hit@1 0,33 → 1,00. Bedel: soru başına 0,03 → 3,5 sn.
 - **Adım 6 yanlıştı:** ifadeleri listeleyen script aynı metni tekilleştirdiği için 2026-06-05'teki "toplam ihracatının yüzde 8'ini" (2010'la aynı ifade) görünmedi. Güncel bilgi %8; tarihsiz sayfa eskimiş değil, uyumlu. Kanıt 2026 + tarihsiz %8 ifadeleriyle düzeltildi. Ders: veri incelerken tekilleştirme, aranan şeyi gizleyebilir.
 - Reranker skorları üstte doyuyor (CEO sorusunda 5 kaynağın hepsi 1,00) → skor eşiğiyle "ilgili/ilgisiz" ayrımı yapılamaz; reranker sıralamayı düzeltir, "cevap var mı" kararını değil.
+
+## 5. Gün — 2026-10-27: Agent
+
+### Adım 1: Tool calling'i tanımak (`agent/tool_demo.py`)
+- Araç JSON Schema ile tanımlanır (ad, açıklama, parametreler); model kodu değil yalnızca bu metinleri görür → `description` prompt'un parçası. Aracı model değil biz çalıştırırız: model `tool_calls` (id + JSON METNİ parametreler) döndürür, sonucu `role: "tool"` + `tool_call_id` ile geri veririz.
+- "Dış satım" sorusunda model sorguyu kendisi zenginleştirdi: `"Koç Topluluğu ihracat payı türkiye dış satım"` → BM25'in 4. gün bulamadığı "ihracat" kelimesi artık sorguda. "Merhaba"da hiç araç çağırmadı (`finish_reason=stop`).
+- Dokümanda yazmayan bulgu: Gemini 3 her araç çağrısına `extra_content.google.thought_signature` ekliyor; silip geri gönderince **400** ("Function call is missing a thought_signature"). Modelin mesajını `model_dump(exclude_none=True)` ile olduğu gibi geri göndermek bu yüzden şart; mesajı elle kurmak kodu bozardı.
+- 3.8 Flash hâlâ 503 (yoğun); 3.5 Flash-Lite ile devam. Küçük sadakat sorunu: model kaynakta olmayan "yaklaşık" kelimesini ekledi.
