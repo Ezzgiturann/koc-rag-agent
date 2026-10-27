@@ -210,3 +210,10 @@
 - Hatalar istisna değil metin olarak modele döner (bozuk JSON, olmayan araç, boş sorgu) → döngü çökmez, model düzeltebilir. Sorgu 200 karakterle sınırlı.
 - `format_source()` `rag.py`'den ayrıldı; etiketleme/güvenlik kuralları tek yerde.
 - Bulgu: sorgudaki yıl filtre değil sıradan kelime ("ihracat payı 2016" → 1999, 2002 haberleri) → ileride `yil` metadata filtresi adayı; önce karşılaştırma sorusunda etkisini ölç.
+
+### Adım 3: Agent döngüsü (`agent/loop.py`)
+- Düz bir `for`: model araç isterse çalıştır + `role: "tool"` ekle, metin dönerse bitir. MAX_STEPS=4; dolarsa `tool_choice="none"` ile araçsız son cevap (dokümanda yoktu, test edildi: çalışıyor). Prompt = rag.py'nin 6 kuralı + araç kuralları (önce ara, parça başına ara, bir kez tekrar dene, selamlaşmada arama).
+- "Dış satım": sorguya "ihracat payı" eklendi, tek aramada cevaplandı. "Merhaba": aramasız, 604 token. Atıf kontrolü (`check_citations`) ve "atıf yapılan" işareti eklendi.
+- Karşılaştırma sorusu (2016 → bugün): 2 arama, ama cevap yanıltıcı (9 → 8): elindeki 2021/2023 kaynaklarındaki ~%7'yi kullanmadı, tarihsiz %8'i tarihli %7'ye tercih etti (kural 4 ihlali), 2026 haberi hiç bulunmadı (yıl filtre değil).
+- Bağlam her adımda büyüyor: girdi 623 → 2.845 → 5.168; toplam 8.636 token ≈ RAG'in 3,5 katı (her çağrı tüm geçmişi yeniden gönderir).
+- Ders: bulmak ≠ kullanmak (sentez hatası, lite modelin sınırı); agent aracın zayıflığını aşamaz → `yil` filtresi artık gözleme dayalı gereksinim.
