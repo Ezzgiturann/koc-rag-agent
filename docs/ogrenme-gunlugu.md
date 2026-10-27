@@ -182,3 +182,9 @@
 - `clean_title(title, url)`: etiketleri sil, boşlukları normalize et, öneki boşluksuz eşleştir; boş kalırsa URL'nin son parçasından başlık üret.
 - Zincir yeniden çalıştı: extract → chunker → embedder → build_index. Embedding önbelleği sayesinde 1.860 chunk'tan yalnızca başlığı değişen 197'si yeniden hesaplandı (11 sn).
 - Etki: vektör Hit@1 0,60 → 0,64 (başlık embedding önekinde); diğer metrikler aynı. Temizlik asıl olarak prompt'taki kaynak etiketlerini ve okunurluğu düzeltti.
+
+### Adım 8: Ardışık chunk birleştirme ve tarihsiz kaynak kuralı (`agent/rag.py`)
+- `merge_adjacent()`: aynı sayfanın ardışık chunk'ları (url + chunk_no) tek kaynakta birleşir; `join_overlapping()` a'nın b'nin başı olan en uzun son ekini bulup örtüşmeyi bir kez yazar (çiftlerin %81'inde örtüşme birebir; kalanında örtüşme yok → alt alta).
+- 25 sorunun 15'inde ilk 5'te aynı sayfanın ardışık parçaları vardı (Microsoft sorusunda 5 kaynağın 4'ü tek haber). Token kazancı küçük (%4,5); asıl kazanç modelin aynı cümleyi iki bağımsız kanıt saymaması.
+- Bulgu: "5 kaynak" çoğu zaman 5 farklı sayfa değil → kaynak çeşitliliği düşük. Boşalan yerleri doldurmak reranker adımına bırakıldı.
+- Prompt kural 4'e ek: tarihsiz kaynak tarihliyle çelişirse tarihli esas alınır; yalnız tarihsiz varsa güncelliğin belirsiz olduğu söylenir. İhracat cevabı artık 2025 (%7) / 2016 (%9) / tarihsiz (%8) ayrımını ve gerekçesini açıkça yazıyor.
