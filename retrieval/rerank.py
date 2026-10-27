@@ -50,10 +50,13 @@ def rerank(reranker: CrossEncoder, question: str, chunks: list[dict], top_k: int
 
 def search_and_rerank(
     milvus: MilvusClient, emb_client: OpenAI, bm25: BM25Index, reranker: CrossEncoder,
-    question: str, top_k: int = 5,
+    question: str, top_k: int = 5, year_from: int | None = None, year_to: int | None = None,
 ) -> list[dict]:
     """Hibrit aramayla geniş aday havuzu topla, reranker ile en iyi top_k'yı seç."""
-    candidates = hybrid_search(milvus, emb_client, bm25, question, top_k=100, depth=CANDIDATE_DEPTH)
+    candidates = hybrid_search(milvus, emb_client, bm25, question, top_k=100, depth=CANDIDATE_DEPTH,
+                               year_from=year_from, year_to=year_to)
+    if not candidates:
+        return []  # filtre aralığında hiç chunk yoksa reranker'a boş liste vermeyelim
     return rerank(reranker, question, candidates, top_k)
 
 

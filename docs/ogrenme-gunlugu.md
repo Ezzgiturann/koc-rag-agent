@@ -217,3 +217,10 @@
 - Karşılaştırma sorusu (2016 → bugün): 2 arama, ama cevap yanıltıcı (9 → 8): elindeki 2021/2023 kaynaklarındaki ~%7'yi kullanmadı, tarihsiz %8'i tarihli %7'ye tercih etti (kural 4 ihlali), 2026 haberi hiç bulunmadı (yıl filtre değil).
 - Bağlam her adımda büyüyor: girdi 623 → 2.845 → 5.168; toplam 8.636 token ≈ RAG'in 3,5 katı (her çağrı tüm geçmişi yeniden gönderir).
 - Ders: bulmak ≠ kullanmak (sentez hatası, lite modelin sınırı); agent aracın zayıflığını aşamaz → `yil` filtresi artık gözleme dayalı gereksinim.
+
+### Adım 3b: Yıl filtresi (`ara(sorgu, yil_baslangic, yil_bitis)`)
+- Filtre her katmanın İÇİNDE: Milvus `tarih >= "2016" and tarih < "2017"` (metin karşılaştırması yıl sırasıyla aynı, yeniden indeksleme yok), BM25'te aynı koşul. Tarihsiz chunk'lar filtre varken gelmez. Sonradan elemek havuzu boşaltabilirdi.
+- Araç doğrulaması: "2016" metni int'e çevrilir; 1990–2030 dışı ve "geçen yıl" gibi değerler HATA metni döner. Aralıkta sonuç yoksa model "aralığı genişlet" mesajı alır.
+- Model bugünün tarihini bilmez → prompt'a her çağrıda `date.today()` eklendi (kural 10).
+- Karşılaştırma sorusu: 9 → 8 (yanıltıcı) yerine 9 → 6,7 → ~7 → >7; tarihsiz %8 ayrı tutuldu. Ama model "her dönem için ayrı ara" kuralına uymadı (tek 2016–2026 araması) → 2026 %8 haberi yine ilk 5'te yok; `yil_baslangic=2026` ile 1. sıradaydı. Araç yetenekli, model kullanmadı.
+- Benim hatam: atıf kontrolü yalnız `[6]` biçimini sayıyordu; model `[6, 9]` yazınca kaçırdı → regex düzeltildi.

@@ -14,6 +14,7 @@ Döngü (framework yok, düz bir for):
 import os
 import re
 import sys
+from datetime import date
 
 from agent.tools import TOOLS, SearchTool, execute_tool  # ilk import: GRPC ayarı (search.py) önce yüklensin
 
@@ -31,7 +32,9 @@ AGENT_PROMPT = SYSTEM_PROMPT + """
    araç sonuçlarındaki <kaynak> metinlerine dayandır. Atıf numaraları kaynakların id'leridir.
 8. Sorunun birden çok parçası varsa her parça için ayrı ara. Sonuçlar cevabı içermiyorsa
    bir kez farklı kelimelerle tekrar ara; yine yoksa "Bu bilgi kaynaklarda yok." de.
-9. Selamlaşma gibi bilgi gerektirmeyen mesajlarda arama yapma."""
+9. Selamlaşma gibi bilgi gerektirmeyen mesajlarda arama yapma.
+10. Bugünün tarihi: {today}. "Güncel", "bugün", "son" gibi ifadeleri buna göre yorumla;
+    dönem karşılaştırmalarında her dönem için yıl parametreleriyle ayrı ara."""
 
 
 def usage_of(response) -> dict[str, int]:
@@ -47,7 +50,8 @@ def run_agent(
     """Soruyu agent döngüsüyle cevaplar; (cevap, adım izi) döndürür. Kaynaklar tool.sources'ta."""
     tool.reset()
     messages: list[dict] = [
-        {"role": "system", "content": AGENT_PROMPT},
+        # Model bugünün tarihini bilmez (eğitim verisi geçmişte kalır); her çağrıda biz söylüyoruz
+        {"role": "system", "content": AGENT_PROMPT.replace("{today}", date.today().isoformat())},
         {"role": "user", "content": question},
     ]
     trace: list[dict] = []
@@ -89,7 +93,8 @@ def run_agent(
 
 def check_citations(answer: str, n_sources: int) -> tuple[set[int], set[int]]:
     """Cevaptaki [n] atıflarını bulur; (geçerli, geçersiz) numara kümelerini döndürür."""
-    cited = {int(n) for n in re.findall(r"\[(\d+)\]", answer)}
+    # Model [6][9] yerine bazen [6, 9] yazıyor; köşeli parantez içindeki tüm sayıları al
+    cited = {int(n) for group in re.findall(r"\[([\d,\s]+)\]", answer) for n in re.findall(r"\d+", group)}
     return {n for n in cited if 1 <= n <= n_sources}, {n for n in cited if not 1 <= n <= n_sources}
 
 

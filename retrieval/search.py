@@ -34,10 +34,30 @@ def check_index_model(milvus: MilvusClient) -> None:
                          "'python -m indexing.build_index' ile indeksi yeniden kur.")
 
 
-def search(milvus: MilvusClient, emb_client: OpenAI, question: str, top_k: int = 5) -> list[dict]:
-    """Soruya anlamca en yakın top_k chunk'ı skorlarıyla döndürür."""
+def year_filter(year_from: int | None, year_to: int | None) -> str:
+    """Yıl aralığını Milvus filtre ifadesine çevirir; ör. 2016–2016 → tarih >= "2016" and tarih < "2017".
+
+    tarih metin ("2016-06-04" veya "2016"); bu biçimde metin karşılaştırması yıl sırasıyla aynı.
+    Tarihsiz (null) chunk'lar karşılaştırmada "yanlış" sayılır, filtre varken hiç gelmez.
+    """
+    parts = []
+    if year_from is not None:
+        parts.append(f'tarih >= "{year_from}"')
+    if year_to is not None:
+        parts.append(f'tarih < "{year_to + 1}"')
+    return " and ".join(parts)
+
+
+def search(
+    milvus: MilvusClient, emb_client: OpenAI, question: str, top_k: int = 5,
+    year_from: int | None = None, year_to: int | None = None,
+) -> list[dict]:
+    """Soruya anlamca en yakın top_k chunk'ı skorlarıyla döndürür; yıl verilirse o aralıkta arar."""
     query_vector = embed_query(emb_client, question)  # sorgu önekiyle: "task: search result | query: ..."
-    hits = milvus.search(COLLECTION, data=[query_vector], limit=top_k, output_fields=OUTPUT_FIELDS)[0]
+    hits = milvus.search(
+        COLLECTION, data=[query_vector], limit=top_k, output_fields=OUTPUT_FIELDS,
+        filter=year_filter(year_from, year_to),  # boş metin = filtre yok
+    )[0]
     return [{"chunk_id": h["chunk_id"], "skor": h["distance"], **h["entity"]} for h in hits]
 
 

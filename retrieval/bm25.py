@@ -36,6 +36,14 @@ def tokenize(text: str, stem: bool = False) -> list[str]:
     return tokens
 
 
+def in_years(date: str | None, year_from: int | None, year_to: int | None) -> bool:
+    """Chunk tarihi yıl aralığında mı? Tarihsiz chunk hiçbir aralıkta değil."""
+    if date is None:
+        return False
+    year = int(date[:4])  # "2016-06-04" veya "2016"
+    return (year_from is None or year >= year_from) and (year_to is None or year <= year_to)
+
+
 class BM25Index:
     """Ters indeks (kelime → hangi chunk'ta kaç kez) ve BM25 puanlaması."""
 
@@ -63,8 +71,13 @@ class BM25Index:
         # +1 içeride: çok yaygın kelimede bile negatif olmaz (Lucene'in kullandığı biçim)
         return math.log(1 + (n - df + 0.5) / (df + 0.5))
 
-    def search(self, question: str, k: int = 5) -> list[dict]:
-        """Soruya en yüksek BM25 puanlı k chunk'ı döndürür (vektör aramasıyla aynı alanlar)."""
+    def search(
+        self, question: str, k: int = 5, year_from: int | None = None, year_to: int | None = None,
+    ) -> list[dict]:
+        """Soruya en yüksek BM25 puanlı k chunk'ı döndürür (vektör aramasıyla aynı alanlar).
+
+        Yıl verilirse yalnızca o aralıktaki chunk'lar; tarihsizler dışarıda (Milvus filtresiyle aynı davranış).
+        """
         scores: Counter[int] = Counter()
         for term in set(tokenize(question, self.stem)):  # sorudaki tekrarları saymıyoruz
             idf = self.idf(term)
@@ -73,6 +86,9 @@ class BM25Index:
                 norm = self.k1 * (1 - self.b + self.b * self.doc_len[i] / self.avg_len)
                 scores[i] += idf * tf * (self.k1 + 1) / (tf + norm)
 
+        if year_from is not None or year_to is not None:
+            scores = Counter({i: s for i, s in scores.items()
+                              if in_years(self.chunks[i]["tarih"], year_from, year_to)})
         return [{**self.chunks[i], "skor": score} for i, score in scores.most_common(k)]
 
 

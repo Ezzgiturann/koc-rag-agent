@@ -20,6 +20,7 @@ from retrieval.bm25 import BM25Index, load_chunks
 from retrieval.rerank import load_reranker, search_and_rerank
 
 MAX_QUERY_CHARS = 200  # modelin göndereceği sorgu için makul üst sınır
+MIN_YEAR, MAX_YEAR = 1990, 2030  # korpustaki en eski haber 1999; yıl parametresi için akıl sağlığı sınırı
 
 TOOLS = [
     {
@@ -30,7 +31,8 @@ TOOLS = [
                 "koc.com.tr içeriğinde (haberler, kurumsal sayfalar, yönetici özgeçmişleri) arama yapar; "
                 "en ilgili 5 metin parçasını numaralı <kaynak> etiketleriyle döndürür. "
                 "Sorunun birden çok parçası varsa (ör. iki yılı karşılaştırma) her parça için ayrı ara. "
-                "Sonuç yetersizse farklı kelimelerle (eşanlamlı, resmi terim) tekrar ara."
+                "Sonuç yetersizse farklı kelimelerle (eşanlamlı, resmi terim) tekrar ara. "
+                "Belirli bir dönem soruluyorsa yıl parametrelerini kullan; yılı sorguya yazmak filtre işlevi görmez."
             ),
             "parameters": {
                 "type": "object",
@@ -38,6 +40,14 @@ TOOLS = [
                     "sorgu": {
                         "type": "string",
                         "description": "Kısa arama ifadesi; sitede geçmesi muhtemel kelimelerle, ör. 'Koç Topluluğu ihracat payı'",
+                    },
+                    "yil_baslangic": {
+                        "type": "integer",
+                        "description": "İsteğe bağlı: yalnızca bu yıl ve sonrasında yayımlanmış içerik. Tarihsiz sayfalar (kurumsal tanıtımlar) filtre varken gelmez.",
+                    },
+                    "yil_bitis": {
+                        "type": "integer",
+                        "description": "İsteğe bağlı: yalnızca bu yıl ve öncesinde yayımlanmış içerik.",
                     },
                 },
                 "required": ["sorgu"],
@@ -64,9 +74,13 @@ class SearchTool:
         self.numbers: dict[str, int] = {}  # chunk_id → kaynak numarası
         self.sources: list[dict] = []  # numara sırasıyla görülen kaynaklar (cevabın altına liste için)
 
-    def search(self, query: str) -> str:
+    def search(self, query: str, year_from: int | None = None, year_to: int | None = None) -> str:
         """Aramayı yapar; sonuçları tek sayaçla numaralanmış <kaynak> blokları olarak döndürür."""
-        chunks = merge_adjacent(search_and_rerank(self.milvus, self.emb_client, self.bm25, self.reranker, query))
+        chunks = merge_adjacent(search_and_rerank(
+            self.milvus, self.emb_client, self.bm25, self.reranker, query, year_from=year_from, year_to=year_to,
+        ))
+        if not chunks:
+            return "Bu yıl aralığında sonuç yok. Aralığı genişlet veya yıl filtresiz ara."
         blocks = []
         for c in chunks:
             if c["chunk_id"] not in self.numbers:  # daha önce görülmediyse yeni numara ver
@@ -91,7 +105,20 @@ def execute_tool(tool: SearchTool, name: str, arguments: str) -> str:
     query = str(args.get("sorgu", "")).strip()
     if not query:
         return "HATA: 'sorgu' parametresi boş olamaz."
-    return tool.search(query[:MAX_QUERY_CHARS])
+
+    years = {}
+    for key in ("yil_baslangic", "yil_bitis"):
+        value = args.get(key)
+        if value is None:
+            continue
+        # Model sayıyı bazen metin olarak gönderir ("2016"); int'e çevrilemeyen veya makul olmayan yılı reddet
+        try:
+            years[key] = int(value)
+        except (TypeError, ValueError):
+            return f"HATA: '{key}' bir yıl olmalı, ör. 2016."
+        if not MIN_YEAR <= years[key] <= MAX_YEAR:
+            return f"HATA: '{key}' {MIN_YEAR}–{MAX_YEAR} arasında olmalı."
+    return tool.search(query[:MAX_QUERY_CHARS], years.get("yil_baslangic"), years.get("yil_bitis"))
 
 
 def main() -> None:
