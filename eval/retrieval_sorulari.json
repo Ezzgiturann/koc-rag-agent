@@ -12,8 +12,8 @@
   {"tur": "genel", "soru": "Üniversite kampüslerinde yapılan gençlik festivali ne zaman geri dönüyor?", "kanit": ["KoçFest"]},
   {"tur": "genel", "soru": "Ram Dış Ticaret plastik hammadde alanında hangi küresel şirketle anlaştı?", "kanit": ["Louis Dreyfus"]},
   {"tur": "genel", "soru": "Yapı Kredi hisse satışından sonra bankanın borsada işlem gören kısmı yüzde kaça çıktı?", "kanit": ["38,83"]},
-  {"tur": "genel", "soru": "Koç Topluluğu Türkiye'nin dış satımının ne kadarını gerçekleştiriyor?", "kanit": ["ihracatının yaklaşık yüzde 7", "ihracatının yüzde 7", "ihracatındaki yüzde 7", "ihracatındaki yaklaşık yüzde 7", "ihracatının yaklaşık %7"],
-   "not": "Zamana bağlı: 2021–2025 haberleri ~%7 diyor; tarihsiz Hakkında sayfalarındaki %8 eskimiş (2026-10-27 kontrolü)."},
+  {"tur": "genel", "soru": "Koç Topluluğu Türkiye'nin dış satımının ne kadarını gerçekleştiriyor?", "kanit": ["ihracatının yüzde 8’ini gerçekleştiriyoruz", "ihracatında %8'inin", "ihracatındaki yaklaşık %8’lik"],
+   "not": "Zamana bağlı: 2021–2025 ~%7, en yeni kaynak (2026-06-05) %8; tarihsiz sayfalardaki %8 bununla uyumlu. 2010'daki aynı ifade ('gerçekleştirdiklerini') bilerek dışarıda (2026-10-27 kontrolü)."},
   {"tur": "genel", "soru": "Koç Holding'de yatırımcılarla ilişkilerden sorumlu koordinatör kim?", "kanit": ["Helin Çelikbilek"]},
 
   {"tur": "terim", "soru": "Koç Holding'in Vergi Yönetimi Koordinatörü kim?", "kanit": ["Berna Bayındır"]},

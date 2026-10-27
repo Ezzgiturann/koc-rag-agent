@@ -1,4 +1,4 @@
-"""Uçtan uca RAG: soru → hibrit arama (vektör + BM25, RRF) → kaynaklı prompt → Gemini cevabı.
+"""Uçtan uca RAG: soru → hibrit arama (vektör + BM25, RRF) → reranker → kaynaklı prompt → Gemini cevabı.
 
 manual_rag.py'de kaynak metni elle kopyalamıştık; burada retrieval/hybrid.py getiriyor.
 
@@ -21,7 +21,7 @@ from agent.cost import estimate_cost
 from indexing.build_index import COLLECTION, get_milvus_client
 from indexing.embedder import get_embedding_client
 from retrieval.bm25 import BM25Index, load_chunks
-from retrieval.hybrid import hybrid_search
+from retrieval.rerank import CrossEncoder, load_reranker, search_and_rerank
 
 SYSTEM_PROMPT = """\
 Sen Koç Holding hakkında soruları cevaplayan bir asistansın.
@@ -102,10 +102,12 @@ def build_messages(question: str, chunks: list[dict]) -> list[dict]:
 
 
 def answer(
-    llm: OpenAI, milvus: MilvusClient, emb_client: OpenAI, bm25: BM25Index, question: str, top_k: int = 5
+    llm: OpenAI, milvus: MilvusClient, emb_client: OpenAI, bm25: BM25Index, reranker: CrossEncoder,
+    question: str, top_k: int = 5,
 ) -> tuple[str, list[dict], dict]:
     """Soruyu cevaplar; (cevap, kullanılan chunk'lar, token kullanımı) döndürür."""
-    chunks = hybrid_search(milvus, emb_client, bm25, question, top_k=top_k)  # 1) retrieve (vektör + BM25)
+    # 1) retrieve: vektör + BM25 → RRF ile ~24 aday → reranker ile en iyi top_k
+    chunks = search_and_rerank(milvus, emb_client, bm25, reranker, question, top_k=top_k)
     chunks = merge_adjacent(chunks)  # aynı sayfanın ardışık parçaları tek kaynak olsun
     messages = build_messages(question, chunks)  # 2) augment
     response = llm.chat.completions.create(  # 3) generate
@@ -130,18 +132,19 @@ def main() -> None:
     check_index_model(milvus)
     milvus.load_collection(COLLECTION)
     bm25 = BM25Index(load_chunks(), stem=True)  # bellekte ~1 sn'de kurulur
+    reranker = load_reranker()  # bir kez yüklenir, tüm sorularda kullanılır
     model = os.environ["CHAT_MODEL"]
 
     for question in questions:
-        text, chunks, usage = answer(llm, milvus, emb_client, bm25, question)
+        text, chunks, usage = answer(llm, milvus, emb_client, bm25, reranker, question)
         thinking = usage["total_tokens"] - usage["prompt_tokens"] - usage["completion_tokens"]
         cost = estimate_cost(model, usage["prompt_tokens"], usage["completion_tokens"], thinking)
 
         print(f"=== Soru: {question}")
         print(f"\n{text}\n")
-        print("Kaynaklar (vektör sırası / BM25 sırası; '-' = o aramanın ilk 5'inde yok):")
+        print("Kaynaklar (reranker skoru · vektör sırası / BM25 sırası; '-' = o aramanın adaylarında yok):")
         for i, c in enumerate(chunks, start=1):
-            ranks = f"{c.get('vektor_sira', '-')}/{c.get('bm25_sira', '-')}"
+            ranks = f"{c['rerank_skor']:.2f} · {c.get('vektor_sira', '-')}/{c.get('bm25_sira', '-')}"
             parts = f" [{c['parca']} chunk birleşik]" if c["parca"] > 1 else ""
             print(f"  [{i}] ({ranks}) {c['baslik']} — {c['tarih'] or 'tarihsiz'}{parts}")
             print(f"      {c['url']}")

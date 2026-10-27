@@ -16,6 +16,7 @@ Arama fonksiyonu parametre olarak verilir; hibrit aramayı da aynı kodla ölçe
 """
 
 import json
+import time
 from collections.abc import Callable
 from pathlib import Path
 
@@ -24,6 +25,7 @@ from retrieval.search import check_index_model, search  # GRPC ayarı için pymi
 from indexing.build_index import COLLECTION, get_milvus_client
 from retrieval.bm25 import BM25Index, load_chunks
 from retrieval.hybrid import hybrid_search
+from retrieval.rerank import load_reranker, search_and_rerank
 from indexing.embedder import get_embedding_client
 
 QUESTIONS_PATH = Path("eval/retrieval_sorulari.json")
@@ -114,16 +116,22 @@ def main() -> None:
     chunks = load_chunks()
     bm25_plain = BM25Index(chunks, stem=False)
     bm25_f5 = BM25Index(chunks, stem=True)
+    reranker = load_reranker()
 
     searches: dict[str, SearchFn] = {
         "vektör (EmbeddingGemma + Milvus FLAT)": vector_search,
         "BM25 (ek işlemi yok)": bm25_plain.search,  # metot da SearchFn imzasına uyuyor
         "BM25 (F5: ilk 5 harf)": bm25_f5.search,
         "hibrit (vektör + BM25 F5, RRF)": lambda q, k: hybrid_search(milvus, emb_client, bm25_f5, q, top_k=k),
+        "hibrit + reranker (bge-reranker-v2-m3)":
+            lambda q, k: search_and_rerank(milvus, emb_client, bm25_f5, reranker, q, top_k=k),
     }
     for name, search_fn in searches.items():
         print(f"\n===== Arama: {name}\n")
-        report(evaluate(search_fn, questions))
+        start = time.perf_counter()
+        results = evaluate(search_fn, questions)
+        report(results)
+        print(f"\nSoru başına süre: {(time.perf_counter() - start) / len(questions):.2f} sn")
     milvus.close()
 
 

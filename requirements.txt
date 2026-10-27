@@ -8,3 +8,7 @@ python-dotenv==1.2.4            # .env dosyasını ortam değişkeni olarak yük
 httpx==0.28.1                   # HTTP istemcisi (timeout, yönlendirme)
 trafilatura==2.3.1              # HTML'den ana metni çıkarır (menü/footer'ı atar)
 defusedxml==0.7.1               # güvenilmez XML'i (sitemap) güvenli ayrıştırır
+
+# 4. gün: reranker (cross-encoder); torch onunla gelir, Mac'te Apple GPU'sunu (MPS) kullanır
+sentence-transformers==6.2.0    # CrossEncoder: BAAI/bge-reranker-v2-m3 (~2 GB, ilk çalıştırmada iner)
+torch==2.14.1

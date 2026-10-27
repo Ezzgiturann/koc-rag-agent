@@ -43,12 +43,17 @@ def rrf_fuse(ranked_lists: dict[str, list[dict]], k: int = RRF_K) -> list[dict]:
 
 
 def hybrid_search(
-    milvus: MilvusClient, emb_client: OpenAI, bm25: BM25Index, question: str, top_k: int = 5
+    milvus: MilvusClient, emb_client: OpenAI, bm25: BM25Index, question: str,
+    top_k: int = 5, depth: int = DEPTH,
 ) -> list[dict]:
-    """Vektör ve BM25 aramasını DEPTH derinliğinde çalıştırıp RRF ile ilk top_k'yı döndürür."""
+    """Vektör ve BM25 aramasını `depth` derinliğinde çalıştırıp RRF ile ilk top_k'yı döndürür.
+
+    Reranker için aday toplarken depth büyütülür: orada RRF sırası değil, doğru chunk'ın
+    havuzda olması (recall) önemli.
+    """
     ranked_lists = {
-        "vektor": search(milvus, emb_client, question, top_k=DEPTH),
-        "bm25": bm25.search(question, k=DEPTH),
+        "vektor": search(milvus, emb_client, question, top_k=depth),
+        "bm25": bm25.search(question, k=depth),
     }
     return rrf_fuse(ranked_lists)[:top_k]
 

@@ -188,3 +188,10 @@
 - 25 sorunun 15'inde ilk 5'te aynı sayfanın ardışık parçaları vardı (Microsoft sorusunda 5 kaynağın 4'ü tek haber). Token kazancı küçük (%4,5); asıl kazanç modelin aynı cümleyi iki bağımsız kanıt saymaması.
 - Bulgu: "5 kaynak" çoğu zaman 5 farklı sayfa değil → kaynak çeşitliliği düşük. Boşalan yerleri doldurmak reranker adımına bırakıldı.
 - Prompt kural 4'e ek: tarihsiz kaynak tarihliyle çelişirse tarihli esas alınır; yalnız tarihsiz varsa güncelliğin belirsiz olduğu söylenir. İhracat cevabı artık 2025 (%7) / 2016 (%9) / tarihsiz (%8) ayrımını ve gerekçesini açıkça yazıyor.
+
+### Adım 9: Reranker (`retrieval/rerank.py`) ve Adım 6'nın düzeltilmesi
+- Cross-encoder `BAAI/bge-reranker-v2-m3` (sentence-transformers, Mac'te MPS): soru ve chunk'ı birlikte okur. Hibrit aramadan aday havuzu → reranker → ilk 5. Model ~2 GB, ilk indirme ~10 dk.
+- Aday derinliği ölçüldü: derinlik 10'dan itibaren doğru chunk 25/25 soruda havuzda → 15 (≈24 aday) seçildi. Aynı parametrenin iki amacı var: RRF sıralaması için 5, reranker havuzu (recall) için 15.
+- Sonuç: Hit@1 0,60 → **0,84**, Hit@5 0,96 → **1,00**, MRR 0,746 → 0,910; terim Hit@1 0,33 → 1,00. Bedel: soru başına 0,03 → 3,5 sn.
+- **Adım 6 yanlıştı:** ifadeleri listeleyen script aynı metni tekilleştirdiği için 2026-06-05'teki "toplam ihracatının yüzde 8'ini" (2010'la aynı ifade) görünmedi. Güncel bilgi %8; tarihsiz sayfa eskimiş değil, uyumlu. Kanıt 2026 + tarihsiz %8 ifadeleriyle düzeltildi. Ders: veri incelerken tekilleştirme, aranan şeyi gizleyebilir.
+- Reranker skorları üstte doyuyor (CEO sorusunda 5 kaynağın hepsi 1,00) → skor eşiğiyle "ilgili/ilgisiz" ayrımı yapılamaz; reranker sıralamayı düzeltir, "cevap var mı" kararını değil.
