@@ -244,3 +244,13 @@
 - Eşanlamlı soru ikisinde de ✗: kural değil arama sorunu ("sahip" ≠ "hisse/halka açık"). Model ilk makul sonuçta durdu; ciro sorusunda da aynı: 2024 (65,8 milyar $) dedi, korpustaki 2025 (64,3 milyar $, 2026-02-11) haberini bulmadı. Agent hatalarının ortak deseni: erken durma.
 - Aynı soru + aynı prompt iki çalıştırmada farklı cevap verdi (bir "yok", bir "10 halka açık") → tek çalıştırmayla prompt etkisi ölçülemez. Uzun açık süreç eski kodu çalıştırır: değişiklik sonrası yeniden başlat.
 - `GRPC_VERBOSITY=NONE`: GOAWAY E (hata) seviyesinde geldiği için ERROR ayarı gizlemiyordu. Toplam: RAG 7/10, agent 8/10; agent ~2 kat token/maliyet ($0,0187 – $0,0094).
+
+## 6. Gün: Servis, arayüz ve log
+
+Mimari: Streamlit (ui) → HTTP → FastAPI (api) → run_agent + SearchTool; her istek SQLite'a. Streamlit her etkileşimde betiği baştan çalıştırdığı ve Milvus Lite tek süreç kabul ettiği için ağır kaynakları API süreci bir kez yükler. API durumsuz: sohbet geçmişini arayüz tutar.
+
+### Adım 1: SQLite logu (`app/db.py`)
+- Tek tablo `sorgular`: soru, cevap, kaynaklar/aramalar (JSON metni), model, token, maliyet, süre, hata, geri bildirim. Hatalı istekler de loglanır (cevap boş, hata dolu) → "hangi saatte kaç 503" sorulabilir.
+- Parametreli sorgu (`VALUES (?, ...)`): değer SQL metnine yapıştırılmaz → `x'); DROP TABLE sorgular; --` yalnızca metin olarak saklandı, tablo yerinde. Prompt injection'daki "veri talimat değildir" ilkesinin SQL karşılığı.
+- `with conn:` transaction'dır (hatasız → commit, hata → rollback) ama bağlantıyı kapatmaz → `finally: conn.close()`. Her işlemde yeni bağlantı: FastAPI istekleri farklı thread'lerde çalışır, sqlite3 bağlantısı varsayılan olarak thread'ler arası paylaşılamaz.
+- `CHECK (geri_bildirim IN (-1, 1))`: kural veritabanı düzeyinde; `rowcount == 0` → olmayan id (API'de 404 olacak). `CREATE TABLE IF NOT EXISTS` sütun eklemez; şema değişirse migration (`ALTER TABLE`) gerekir.
