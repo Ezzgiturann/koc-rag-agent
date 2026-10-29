@@ -19,6 +19,8 @@ PRICES: dict[str, dict[str, float]] = {
     "gemini-3.8-flash": {"input": 0.75, "output": 3.75},
     # 3.8 Flash aşırı yoğun olduğunda yedek model (kontrol tarihi 2026-10-27)
     "gemini-3.5-flash-lite": {"input": 0.30, "output": 2.50},
+    # Yerel model (Ollama): API ücreti yok; karşılaştırmada maliyet sütunu 0 görünsün
+    "gemma4-koc": {"input": 0.0, "output": 0.0},
 }
 
 

@@ -1,0 +1,5 @@
+# Yerel Gemma 4 E4B, 16K bağlam (7. gün). Ollama varsayılanı 4.096 token; agent'ın çok adımlı
+# prompt'ları 10K'yı geçebiliyor ve sınırı aşan prompt'un BAŞI (sistem kuralları) sessizce kesiliyordu.
+# Oluşturma: ollama create gemma4-koc -f ollama/gemma4-koc.Modelfile
+FROM gemma4:e4b-it-qat
+PARAMETER num_ctx 16384
