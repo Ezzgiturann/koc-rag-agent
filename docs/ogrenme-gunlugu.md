@@ -310,3 +310,8 @@ Mimari: Streamlit (ui) → HTTP → FastAPI (api) → run_agent + SearchTool; he
 - Geçiş yalnızca `.env`: `VECTOR_DB_URI=http://127.0.0.1:19530`; kod değişmedi (1. günden beri "dosya yolu → Lite, http → sunucu").
 - Yeni kavram — nihai tutarlılık: insert sonrası sayım 4.173 yerine 3.000 dedi. Varsayılan "Bounded" seviyede sorgu son birkaç saniyenin yazmalarını görmeyebilir (hız karşılığı). Lite tek süreçli, orada görünmüyordu. `build_index` sayım/sağlama sorguları `consistency_level="Strong"`.
 - Lite ile birebir aynı sonuç (29 soru × 5 yöntem, diff boş): ikisi de FLAT = kesin arama. Kilit testi: API açıkken eval çalıştı — Lite'taki "aynı anda tek süreç" sınırı kalktı. (`agent_lock` hâlâ gerekli: o Milvus için değil, SearchTool'un kaynak numaraları için.)
+
+### Adım 7: Cevap süresi — ölç, sonra hızlandır
+- Basit soru ~11 sn: Gemini ~3,3 sn × en az 2 çağrı (~%60; agent'ın "önce karar ver" bedeli), reranker ~3,7 sn/arama (~%35), embedding 0,2 sn, BM25 + Milvus ~0. Ölçmeden "embedding'i hızlandır" demek toplamın %2'sine emek harcamak olurdu.
+- Reranker seçenekleri 29 soruda ölçüldü: fp16 (16 bit sayılar) → 3,76 → 2,90 sn, sıralama birebir aynı (0 soru değişti). Aday derinliği 15 → 10 → 2,47 sn ama Hit@1 0,72 → 0,66: 4. günün "10 yeterli" ölçümü PDF'lerden önceydi; korpus büyüyünce doğru chunk havuza daha geç giriyor. Yalnızca fp16 uygulandı (GPU'da; CPU'da değil).
+- Kalan büyük kalem Gemini; gerçek süreyi kodla kısaltamıyoruz ama algılanan süreyi streaming (adım adım ilerleme + kelime kelime cevap) kısaltabilir — sonraki aday iş.

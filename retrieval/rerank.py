@@ -27,15 +27,21 @@ from retrieval.bm25 import BM25Index, load_chunks
 from retrieval.hybrid import hybrid_search
 
 RERANK_MODEL = "BAAI/bge-reranker-v2-m3"
-# Aday havuzu: her aramadan ilk 15 → RRF birleşimi ~24 aday. Ölçüldü: derinlik 10'dan
-# itibaren doğru chunk 25/25 soruda havuzda; 15 küçük bir güvenlik payı.
+# Aday havuzu: her aramadan ilk 15 → RRF birleşimi ~24 aday. 4. gün: derinlik 10'dan itibaren
+# doğru chunk 25/25 soruda havuzdaydı. 7. gün (PDF'li, 4.173 chunk): 10'a inmek Hit@1'i
+# 0,72 → 0,66 düşürdü (1,3 sn kazanç) → 15'te kalıyor.
 CANDIDATE_DEPTH = 15
 MAX_LENGTH = 512  # soru + chunk token sınırı; chunk'larımız ~400 token, sığıyor
 
 
 def load_reranker() -> CrossEncoder:
     """Modeli yükler; Mac'te Apple GPU'sunu (MPS) kendiliğinden kullanır."""
-    return CrossEncoder(RERANK_MODEL, max_length=MAX_LENGTH)
+    reranker = CrossEncoder(RERANK_MODEL, max_length=MAX_LENGTH)
+    # fp16 (16 bit sayılar): GPU'da ~%23 hızlı, 29 soruda sıralama birebir aynı (7. gün ölçümü).
+    # CPU'da fp16 desteği zayıf/yavaş → yalnızca GPU'da.
+    if reranker.device.type in ("mps", "cuda"):
+        reranker.model.half()
+    return reranker
 
 
 def rerank(reranker: CrossEncoder, question: str, chunks: list[dict], top_k: int = 5) -> list[dict]:
