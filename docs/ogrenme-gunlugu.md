@@ -266,3 +266,9 @@ Mimari: Streamlit (ui) → HTTP → FastAPI (api) → run_agent + SearchTool; he
 - Güvenilmez metin ekranda da kod değil: kaynak başlıklarında markdown/Streamlit karakterleri kaçışlanır (`[x](link)`, `:red[]`, `$`), cevaptaki linkler/görseller düz metne çevrilir, link yalnızca `https://www.koc.com.tr/...` ise tıklanabilir. Aynı URL'nin chunk'ları tek satırda (`[1][3]`), atıf yapılanlar üstte.
 - `uvicorn --reload` tüm `.py` dosyalarını izler: `app/ui.py`'yi düzenlemek API'yi de yeniden başlattı (~8 sn model yükleme) → o arada sağlık kontrolü "API kapalı" dedi.
 - Uçtan uca: CEO ✓ (👍), "peki ondan önceki kimdi" üçüncü kez "yok" (👎; Turgay Durak korpusta) — model her seferinde "Çakıroğlu'ndan önce" diye arıyor. Tutarlı hata → test setine aday; log'daki 👎 tam bunun için.
+
+### Adım 4: Log raporu (`app/log_rapor.py`) ve Streamlit ayarı
+- Güvenlik açığı (benim hatam): Streamlit varsayılan olarak tüm ağ arayüzlerini dinliyor (`Network URL: 192.168.x.x:8501`) → aynı Wi-Fi'deki biri arayüz üzerinden localhost'a kapalı API'yi ve Gemini kotasını kullanabilirdi. `.streamlit/config.toml`: `address = "localhost"`, telemetri kapalı (`gatherUsageStats = false`).
+- SQL özet: `SUM(kosul)` ile sayma (karşılaştırma 1/0), `COALESCE` (boş tabloda SUM NULL), `GROUP BY` hata türü, `json_array_length` (soru başına arama), `json_each` (listeyi satırlara açma) + `json_valid` koruması (modelin bozuk JSON'u sorguyu düşürmesin). Medyan Python'da: tek bir 60 sn'lik takılma ortalamayı bozar, medyanı bozmaz.
+- İlk rapor (5 soru): ortalama 18,3 sn / medyan 15,7 sn; soru başına 1,4 arama; yıl filtreli arama 0/7 → "önceki CEO" sorusunda filtre gerekirken hiç kullanılmadı (5. gündeki gözlem artık ölçülebilir).
+- "Yok" bölümü kapsam dışı ile arama hatasını ayırmaya yarıyor: "asistan" (gerçekten anlamsız soru) ile "ondan önceki" (korpusta var, arama hatası) aynı listede; 👎 ikincisini işaretledi.

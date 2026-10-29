@@ -1,0 +1,10 @@
+# Streamlit proje ayarları (streamlit run proje klasöründen çalıştırılınca okunur)
+
+[server]
+# Yalnızca bu bilgisayardan erişim. Varsayılan tüm ağ arayüzleri: aynı Wi-Fi'deki biri
+# arayüzü açıp API'yi (ve Gemini kotasını) kullanabilirdi. API de yalnızca 127.0.0.1'de.
+address = "localhost"
+
+[browser]
+# Kullanım istatistiği gönderme; projede dışarı giden veriyi bilinçli olarak sınırlıyoruz
+gatherUsageStats = false
