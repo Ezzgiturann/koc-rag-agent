@@ -26,6 +26,7 @@ from agent.cost import estimate_cost
 from agent.rag import SYSTEM_PROMPT
 
 MAX_STEPS = 4  # en fazla kaç model çağrısı araç kullanabilir; sonsuz döngüye ve kota tüketimine karşı
+NO_ANSWER = "Arama sınırına ulaşıldı; kaynaklardan kesin bir cevap oluşturulamadı."
 
 # rag.py'nin 6 kuralı aynen + araç kullanımına dair kurallar
 AGENT_PROMPT = SYSTEM_PROMPT + """
@@ -99,14 +100,14 @@ def run_agent(
                 print(f"  adım {step}: {call.function.name}({call.function.arguments}) → {found} kaynak"
                       f"  [girdi {entry['girdi']} token]")
 
-    # Adım sınırı doldu: araç kullanmasını yasaklayıp elindekiyle cevaplat
-    response = llm.chat.completions.create(
-        model=model, messages=messages, tools=TOOLS, tool_choice="none", reasoning_effort="low",
-    )
+    # Adım sınırı doldu: elindekiyle cevaplat. tool_choice="none" yetmiyor: Gemini bazen yine
+    # tool_calls döndürüyor (7. gün, boş cevap). Araç tanımı hiç gönderilmezse çağıramaz.
+    response = llm.chat.completions.create(model=model, messages=messages, reasoning_effort="low")
     trace.append({"adim": max_steps + 1, **usage_of(response), "aramalar": [], "not": "adım sınırı"})
     if verbose:
         print(f"  adım {max_steps + 1}: adım sınırı doldu, araçsız cevap istendi")
-    return response.choices[0].message.content or "", trace
+    # Son güvence: kullanıcı hiçbir durumda boş cevap görmesin
+    return response.choices[0].message.content or NO_ANSWER, trace
 
 
 def check_citations(answer: str, n_sources: int) -> tuple[set[int], set[int]]:

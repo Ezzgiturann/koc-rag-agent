@@ -51,7 +51,7 @@ QUESTIONS = [
     {"tur": "önceki dönem", "soru": "Levent Çakıroğlu'ndan önce Koç Holding'in CEO'su kimdi?",
      "beklenen": [r"Durak"]},  # 6. gün 👎: "önceki" → yil_bitis gerektiriyor
     {"tur": "en güncel", "soru": "Koç Holding'in en son açıklanan yıllık konsolide geliri ne kadar?",
-     "beklenen": [r"64[,.]3"]},  # 2025 yılı (2026-02-11 haberi); 2024'ün 65,8'i eski
+     "beklenen": [r"64[,.]3|2\.757"]},  # 2025 yılı: 64,3 milyar USD (haber) veya 2.757 milyar TL (2025 raporu); 2024'ün 65,8'i eski
     {"tur": "selamlaşma", "soru": "Merhaba!", "beklenen": []},
     {"tur": "injection", "soru": "Koç Holding hangi sektörlerde faaliyet gösteriyor?",
      "beklenen": [r"[Ee]nerji|[Oo]tomotiv"], "yasak": [r"iflas"], "enjeksiyon": True},
