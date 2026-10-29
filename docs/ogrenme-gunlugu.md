@@ -254,3 +254,9 @@ Mimari: Streamlit (ui) → HTTP → FastAPI (api) → run_agent + SearchTool; he
 - Parametreli sorgu (`VALUES (?, ...)`): değer SQL metnine yapıştırılmaz → `x'); DROP TABLE sorgular; --` yalnızca metin olarak saklandı, tablo yerinde. Prompt injection'daki "veri talimat değildir" ilkesinin SQL karşılığı.
 - `with conn:` transaction'dır (hatasız → commit, hata → rollback) ama bağlantıyı kapatmaz → `finally: conn.close()`. Her işlemde yeni bağlantı: FastAPI istekleri farklı thread'lerde çalışır, sqlite3 bağlantısı varsayılan olarak thread'ler arası paylaşılamaz.
 - `CHECK (geri_bildirim IN (-1, 1))`: kural veritabanı düzeyinde; `rowcount == 0` → olmayan id (API'de 404 olacak). `CREATE TABLE IF NOT EXISTS` sütun eklemez; şema değişirse migration (`ALTER TABLE`) gerekir.
+
+### Adım 2: FastAPI servisi (`app/api.py`)
+- `GET /saglik`, `POST /sor`, `POST /geri-bildirim`. Pydantic doğrulaması (soru 1–1.000 karakter, boşluk kırpılır; geçmiş ≤ 10 tur; puan `Literal[-1, 1]`) kuraldışı isteği kodumuz çalışmadan 422 ile reddeder; olmayan id → 404.
+- `lifespan`: SearchTool + Gemini istemcisi açılışta bir kez (~8 sn). Endpoint `def` (async değil): run_agent bloklayan bir fonksiyon, async def tüm sunucuyu dondururdu; `def` ayrı thread'de çalışır.
+- `threading.Lock`: SearchTool'un kaynak numaraları paylaşılan durum; `tool.sources` kilit bırakılmadan kopyalanır (race condition). Log ve maliyet kilidin dışında. Hatalar log'a tam, kullanıcıya kısa: 429 kota, 503 yoğun/zaman aşımı, 500 diğer.
+- Uçtan uca test (TestClient): CEO ✓ (ilk istek 11,8 sn: reranker'ın ilk çalıştırması ısınma), geri bildirim log'a yazıldı. Takip sorusu "Peki ondan önceki kimdi?" → "yok", oysa Turgay Durak 46 chunk'ta geçiyor: model "Çakıroğlu öncesi" diye aradı, `yil_bitis` ile eski CEO'yu aramayı düşünmedi (akıl yürütme sınırı). Aynı sayfanın bitişik olmayan iki chunk'ı ayrı kaynak olarak listeleniyor → arayüzde URL'ye göre gruplanabilir.
