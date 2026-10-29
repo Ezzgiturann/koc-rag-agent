@@ -280,3 +280,9 @@ Mimari: Streamlit (ui) → HTTP → FastAPI (api) → run_agent + SearchTool; he
 - Retrieval: 3 kullanıcı sorusu 5 yöntemin HİÇBİRİNDE ilk 10'da değil (0/3). Eski 25 soru değişmedi (reranker Hit@1 21/25). Benim yazdığım sorular korpusun kelimeleriyle yazılmıştı; kullanıcınınkiler değil.
 - Agent 10/12, RAG 7/12. "Önceki CEO" bu kez ✓, ama ikinci sorgu `"Koç Holding önceki CEO Turgay Durak 2015"`: adı kaynaktan değil modelin KENDİ bilgisinden sorguya koydu, sonra kaynakla doğruladı. Cevap kaynaklı, ama başarı akıl yürütmeden değil ezberden geldi; modelin bilmediği bir konuda işlemezdi.
 - "En güncel gelir" ikisinde de ✗ ve daha kötü: 2023 (54,5 milyar $) dediler; doğrusu 2025 (64,3 milyar $). Agent `yil_baslangic: 2021` ile aradı — filtre kullandı ama yeterince dar değil. Sahiplik sorusunda agent bu kez ortaklık yapısını buldu (rastgelelik).
+
+### Adım 2: PDF indirme (`crawler/pdf_fetch.py`)
+- PDF seçimini düzelttim: dosya adlarına bakarak 2023 yıllık + iki ara dönem önermiştim; rapor sayfasının kendi listesi (HTML'e gömülü JSON) 2024 ve 2025 yıllık raporlarının da olduğunu gösterdi (`kocholding-fr24tr_.pdf` — adında "faaliyet-raporu" geçmiyor). Seçim: 2024 yıllık, 2025 yıllık, 2026 2. çeyrek.
+- Tarih = yayın tarihi (2024 raporu 2025-03-11), kapsadığı yıl değil; HTML haberlerindeki gibi.
+- `cdn.koc.com.tr/robots.txt` 400 → boş kural listesi = her şeye izin (robotparser'ın 4xx davranışı; önce test edildi). RateLimiter ve User-Agent fetcher.py'den.
+- Dört doğrulama: son adres hâlâ cdn mi, content-type PDF mi, boyut ≤ 30 MB (stream ile indirirken de), ilk byte'lar `%PDF` mi (sihirli byte: türü içerikten doğrulamak). Dosya ancak hepsi geçince diske yazılır: bozuk veri önbelleğe girerse kalıcılaşır.
