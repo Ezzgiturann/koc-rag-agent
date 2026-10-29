@@ -74,12 +74,17 @@ def main() -> None:
     for i in range(0, len(rows), INSERT_BATCH):
         client.insert(COLLECTION, rows[i:i + INSERT_BATCH])
 
-    count = client.query(COLLECTION, filter="", output_fields=["count(*)"])[0]["count(*)"]
+    # Strong: sorgu, o ana kadarki tüm yazmalar görünür olana kadar bekler. Varsayılan (Bounded)
+    # Standalone'da son birkaç saniyenin yazmalarını henüz görmeyebilir (7. gün: 4.173 yerine 3.000);
+    # Lite tek süreçli olduğu için bu fark orada görünmüyordu.
+    count = client.query(COLLECTION, filter="", output_fields=["count(*)"],
+                         consistency_level="Strong")[0]["count(*)"]
     print(f"'{COLLECTION}' koleksiyonuna {count} chunk yazıldı ({model}, {dims} boyut)")
 
     # Sağlama: bir chunk'ın kendi vektörüyle arama yapınca ilk sonuç kendisi olmalı (skor ≈ 1)
     for row in random.sample(rows, 3):
-        hit = client.search(COLLECTION, data=[row["vector"]], limit=1, output_fields=["baslik"])[0][0]
+        hit = client.search(COLLECTION, data=[row["vector"]], limit=1, output_fields=["baslik"],
+                            consistency_level="Strong")[0][0]
         # Sonuçta birincil anahtar, şemadaki adıyla ("chunk_id") gelir
         status = "✓" if hit["chunk_id"] == row["chunk_id"] else "✗"
         print(f"  {status} {row['chunk_id']} → {hit['chunk_id']} (skor {hit['distance']:.4f}) {hit['entity']['baslik'][:50]}")
