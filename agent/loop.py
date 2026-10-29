@@ -16,11 +16,13 @@ kalkar; yetmezse agent yine istediği kadar arar.
     python -m agent.loop --sohbet   # terminalden etkileşimli sohbet
 """
 
+import itertools
 import json
 import os
 import re
 import sys
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
+from concurrent.futures import FIRST_COMPLETED, Future, ThreadPoolExecutor, wait
 from datetime import date
 
 from agent.tools import MAX_QUERY_CHARS, TOOLS, SearchTool, execute_tool  # ilk import: GRPC ayarı (search.py) önce yüklensin
@@ -31,6 +33,10 @@ from agent.ask import get_client
 from agent.cost import estimate_cost
 from agent.rag import SYSTEM_PROMPT
 
+# Yedekli istek (hedged request): ilk parça bu kadar saniyede gelmezse aynı istek bir kez daha
+# gönderilir, önce cevap vereni kullanılır. Ölçüm (7. gün, yoğun saat): tek istek 11–31 sn,
+# iki istekten önce gelen 11–14 sn. Gemini hızlıyken ikinci istek hiç gönderilmez.
+HEDGE_DELAY = 5.0
 MAX_STEPS = 4  # en fazla kaç model çağrısı araç kullanabilir; sonsuz döngüye ve kota tüketimine karşı
 NO_ANSWER = "Arama sınırına ulaşıldı; kaynaklardan kesin bir cevap oluşturulamadı."
 
@@ -69,15 +75,55 @@ def usage_of(response) -> dict[str, int]:
 Event = Callable[[dict], None]  # olay: {"olay": "arama" | "metin" | "sifirla", ...}
 
 
-def stream_call(llm: OpenAI, on_event: Event | None, **kwargs) -> tuple[dict, dict[str, int]]:
+def open_stream(llm: OpenAI, kwargs: dict):
+    """Akışı açar ve İLK parçayı bekler (Gemini'nin beklemesinin neredeyse tamamı burada)."""
+    stream = llm.chat.completions.create(stream=True, stream_options={"include_usage": True}, **kwargs)
+    chunks = iter(stream)
+    return stream, chunks, next(chunks, None)
+
+
+def open_hedged(llm: OpenAI, kwargs: dict, delay: float) -> tuple[Iterator, bool]:
+    """İlk parçayı en önce getiren akışı seçer; (parça akışı, yedek istek gönderildi mi) döndürür."""
+    pool = ThreadPoolExecutor(max_workers=2)
+    futures: list[Future] = [pool.submit(open_stream, llm, kwargs)]
+    done, _ = wait(futures, timeout=delay)
+    if not done or futures[0].exception():  # yavaş veya hata verdi → yedek isteği gönder
+        futures.append(pool.submit(open_stream, llm, kwargs))
+    pending = set(futures)
+    winner = None
+    while pending and winner is None:
+        done, pending = wait(pending, return_when=FIRST_COMPLETED)
+        winner = next((f for f in done if not f.exception()), None)
+    for f in futures:
+        if f is not winner:  # kaybeden akışı, bittiğinde kapat (bağlantı ve kota boşa açık kalmasın)
+            f.add_done_callback(lambda f: None if f.exception() else f.result()[0].close())
+    pool.shutdown(wait=False)  # kaybeden thread'i bekleme
+    if winner is None:
+        raise futures[0].exception()  # hepsi hata verdi: ilk hatayı yukarı ilet (API 503/429'a çevirir)
+    _, chunks, first = winner.result()
+    return with_first(first, chunks), len(futures) > 1
+
+
+def with_first(first, chunks: Iterator) -> Iterator:
+    """Beklerken okunan ilk parçayı akışın başına geri koyar."""
+    return itertools.chain([first], chunks) if first is not None else chunks
+
+
+def stream_call(llm: OpenAI, on_event: Event | None, hedge: bool = False, **kwargs) -> tuple[dict, dict[str, int]]:
     """Modeli akış (streaming) modunda çağırır: metin parçaları geldikçe on_event'e iletilir.
 
+    hedge: yavaşsa yedek istek gönder (arayüz için; eval'lerde kapalı: kota iki katına çıkabilir).
     Döndürür: (asistan mesajı — bir sonraki çağrıya OLDUĞU GİBİ eklenecek, token kullanımı).
+    Not: yedek istek kaybederse onun token'ları da harcanır ama burada sayılmaz.
     """
     content = ""
     calls: dict[int, dict] = {}  # sıra (index) → araç çağrısı; parça parça gelebilir
     usage = None
-    stream = llm.chat.completions.create(stream=True, stream_options={"include_usage": True}, **kwargs)
+    if hedge:
+        stream, hedged = open_hedged(llm, kwargs, HEDGE_DELAY)
+    else:
+        _, chunks, first = open_stream(llm, kwargs)
+        stream, hedged = with_first(first, chunks), False
     for chunk in stream:
         if chunk.usage:
             usage = chunk.usage  # Gemini her parçada BİRİKİMLİ kullanım gönderiyor: sonuncusu toplam
@@ -107,7 +153,7 @@ def stream_call(llm: OpenAI, on_event: Event | None, **kwargs) -> tuple[dict, di
     message = {k: v for k, v in message.items() if v is not None}
     u = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0} if usage is None else usage.model_dump()
     return message, {"girdi": u["prompt_tokens"], "cikti": u["completion_tokens"],
-                     "dusunme": u["total_tokens"] - u["prompt_tokens"] - u["completion_tokens"]}
+                     "dusunme": u["total_tokens"] - u["prompt_tokens"] - u["completion_tokens"], "yedek": hedged}
 
 
 def run_search(tool: SearchTool, name: str, arguments: str, on_event: Event | None) -> str:
@@ -125,12 +171,14 @@ def run_search(tool: SearchTool, name: str, arguments: str, on_event: Event | No
 def run_agent(
     llm: OpenAI, tool: SearchTool, question: str, max_steps: int = MAX_STEPS, verbose: bool = True,
     history: list[dict] | None = None, prefetch: bool = True, on_event: Event | None = None,
+    hedge: bool = False,
 ) -> tuple[str, list[dict]]:
     """Soruyu agent döngüsüyle cevaplar; (cevap, adım izi) döndürür. Kaynaklar tool.sources'ta.
 
     history: önceki soru-cevaplar (add_turn ile); takip sorularını anlamak için.
     prefetch: geçmiş yoksa soruyu önceden bir kez ara (adım 0).
     on_event: verilirse aramalar ve cevap metni oluştukça bildirilir (arayüzde canlı gösterim).
+    hedge: model yavaşsa yedek istek gönder (HEDGE_DELAY).
     """
     tool.reset()
     trace: list[dict] = []
@@ -153,7 +201,7 @@ def run_agent(
     model = os.environ["CHAT_MODEL"]
 
     for step in range(1, max_steps + 1):
-        message, usage = stream_call(llm, on_event, model=model, messages=messages, tools=TOOLS,
+        message, usage = stream_call(llm, on_event, hedge, model=model, messages=messages, tools=TOOLS,
                                      tool_choice="auto", reasoning_effort="low")
         entry = {"adim": step, **usage, "aramalar": []}
         trace.append(entry)
@@ -176,7 +224,7 @@ def run_agent(
 
     # Adım sınırı doldu: elindekiyle cevaplat. tool_choice="none" yetmiyor: Gemini bazen yine
     # tool_calls döndürüyor (7. gün, boş cevap). Araç tanımı hiç gönderilmezse çağıramaz.
-    message, usage = stream_call(llm, on_event, model=model, messages=messages, reasoning_effort="low")
+    message, usage = stream_call(llm, on_event, hedge, model=model, messages=messages, reasoning_effort="low")
     trace.append({"adim": max_steps + 1, **usage, "aramalar": [], "not": "adım sınırı"})
     if verbose:
         print(f"  adım {max_steps + 1}: adım sınırı doldu, araçsız cevap istendi")

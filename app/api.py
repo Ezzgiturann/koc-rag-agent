@@ -9,6 +9,7 @@ Deneme sayfası: http://127.0.0.1:8000/docs
 """
 
 import json
+import logging
 import os
 import queue
 import threading
@@ -65,6 +66,7 @@ class FeedbackRequest(BaseModel):
     puan: Literal[-1, 1]  # 👎 = -1, 👍 = 1; başka değer 422
 
 
+logger = logging.getLogger("uvicorn.error")  # uvicorn'un kendi log'una yazar (terminalde görünür)
 resources: dict = {}  # lifespan doldurur: "llm", "tool"
 # SearchTool kaynak numaralarını kendi içinde tutar (tool.sources); iki istek aynı anda
 # çalışırsa numaralar karışır. Kilit istekleri sıraya sokar.
@@ -100,8 +102,9 @@ def answer_question(req: AskRequest, on_event: Event | None = None) -> AskRespon
     with agent_lock:
         tool: SearchTool = resources["tool"]
         try:
+            # hedge: Gemini yavaşsa yedek istek (arayüz kullanıcısı için hız; eval'ler kendi run_agent'ını çağırır)
             answer, trace = run_agent(resources["llm"], tool, req.soru, verbose=False, history=history,
-                                      on_event=on_event)
+                                      on_event=on_event, hedge=True)
         except Exception as e:
             # Ayrıntı yalnızca log'a; kullanıcıya iç hata mesajı gösterilmez
             log_query(req.soru, None, [], [], model, {}, 0.0, time.perf_counter() - start,
@@ -113,6 +116,9 @@ def answer_question(req: AskRequest, on_event: Event | None = None) -> AskRespon
             raise HTTPException(500, "Bir hata oluştu.")
         chunks = list(tool.sources)  # kilit bırakılmadan kopyala: sonraki istek reset() yapacak
     duration = time.perf_counter() - start
+    n_calls = sum(step["adim"] > 0 for step in trace)
+    n_hedged = sum(bool(step.get("yedek")) for step in trace)
+    logger.info("soru: %.1f sn, %d model çağrısı, %d yedek istek", duration, n_calls, n_hedged)
 
     valid, _ = check_citations(answer, len(chunks))
     sources = [Source(no=i, baslik=c["baslik"], url=c["url"], tarih=c["tarih"], atif=i in valid)
