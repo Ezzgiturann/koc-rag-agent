@@ -90,7 +90,7 @@ def run_agent_eval(llm, tool, question: str) -> dict:
     start = time.perf_counter()
     text, trace = run_agent(llm, tool, question, verbose=True)
     valid, invalid = check_citations(text, len(tool.sources))
-    return {"cevap": text, "arama": sum(len(t["aramalar"]) for t in trace), "cagri": len(trace),
+    return {"cevap": text, "arama": sum(len(t["aramalar"]) for t in trace), "cagri": sum(t["adim"] > 0 for t in trace),  # adım 0 = ön arama
             "girdi": sum(t["girdi"] for t in trace), "cikti": sum(t["cikti"] for t in trace),
             "dusunme": sum(t["dusunme"] for t in trace),
             "atif_gecerli": len(valid), "atif_gecersiz": len(invalid), "sure": time.perf_counter() - start,

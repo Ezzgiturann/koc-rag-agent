@@ -6,18 +6,23 @@ Döngü (framework yok, düz bir for):
   3) Metin döndürürse cevap budur.
   MAX_STEPS dolarsa araçsız son bir çağrıyla elindekiyle cevaplatırız.
 
+Ön arama (7. gün): yeni bir soruda (geçmiş yoksa) soruyu kendimiz bir kez arayıp sonuçları
+ilk mesaja ekleriz. Basit sorularda model doğrudan cevaplar → "ne arayayım?" çağrısı (~3 sn)
+kalkar; yetmezse agent yine istediği kadar arar.
+
 Çalıştırma:
     python -m agent.loop "Koç Topluluğu'nun ihracat payı 2016'dan bugüne nasıl değişti?"
     python -m agent.loop            # soru verilmezse takip sorulu 3 soruluk sohbet
     python -m agent.loop --sohbet   # terminalden etkileşimli sohbet
 """
 
+import json
 import os
 import re
 import sys
 from datetime import date
 
-from agent.tools import TOOLS, SearchTool, execute_tool  # ilk import: GRPC ayarı (search.py) önce yüklensin
+from agent.tools import MAX_QUERY_CHARS, TOOLS, SearchTool, execute_tool  # ilk import: GRPC ayarı (search.py) önce yüklensin
 
 from openai import OpenAI
 
@@ -30,11 +35,13 @@ NO_ANSWER = "Arama sınırına ulaşıldı; kaynaklardan kesin bir cevap oluştu
 
 # rag.py'nin 6 kuralı aynen + araç kullanımına dair kurallar
 AGENT_PROMPT = SYSTEM_PROMPT + """
-7. Koç Holding hakkındaki her bilgi sorusunda önce 'ara' aracını kullan; cevabı yalnızca
-   araç sonuçlarındaki <kaynak> metinlerine dayandır. Atıf numaraları kaynakların id'leridir.
+7. Koç Holding hakkındaki her bilgi sorusunda cevabı yalnızca <kaynak> metinlerine dayandır;
+   atıf numaraları kaynakların id'leridir. Mesajda <on_arama> sonuçları varsa önce onlara bak:
+   soruyu cevaplıyorlarsa aramadan cevap ver, yetmiyorsa 'ara' aracını kullan. Ön arama yoksa
+   önce 'ara' aracını kullan.
 8. Sorunun birden çok parçası varsa her parça için ayrı ara. Sonuçlar cevabı içermiyorsa
    bir kez farklı kelimelerle tekrar ara; yine yoksa "Bu bilgi kaynaklarda yok." de.
-9. Selamlaşma gibi bilgi gerektirmeyen mesajlarda arama yapma.
+9. Selamlaşma gibi bilgi gerektirmeyen mesajlarda arama yapma, ön arama sonuçlarını kullanma.
 10. Bugünün tarihi: {today}. "Güncel", "bugün", "son" gibi ifadeleri buna göre yorumla;
     dönem karşılaştırmalarında her dönem için yıl parametreleriyle ayrı ara.
 11. Önceki konuşma yalnızca yeni sorunun neyi kastettiğini anlamak içindir ("peki ya 2016'da?" →
@@ -60,20 +67,31 @@ def usage_of(response) -> dict[str, int]:
 
 def run_agent(
     llm: OpenAI, tool: SearchTool, question: str, max_steps: int = MAX_STEPS, verbose: bool = True,
-    history: list[dict] | None = None,
+    history: list[dict] | None = None, prefetch: bool = True,
 ) -> tuple[str, list[dict]]:
     """Soruyu agent döngüsüyle cevaplar; (cevap, adım izi) döndürür. Kaynaklar tool.sources'ta.
 
     history: önceki soru-cevaplar (add_turn ile); takip sorularını anlamak için.
+    prefetch: geçmiş yoksa soruyu önceden bir kez ara (adım 0).
     """
     tool.reset()
+    trace: list[dict] = []
+    user_content = question
+    # Takip sorusunda ("peki 2016'da?") soru tek başına anlamsız: ön arama yok, agent kendisi yazar
+    if prefetch and not history:
+        args = json.dumps({"sorgu": question[:MAX_QUERY_CHARS]}, ensure_ascii=False)
+        results = execute_tool(tool, "ara", args)
+        trace.append({"adim": 0, "girdi": 0, "cikti": 0, "dusunme": 0, "aramalar": [args], "not": "ön arama"})
+        if verbose:
+            print(f"  adım 0: ön arama({question[:60]!r}) → {len(re.findall(r'<kaynak id=', results))} kaynak")
+        # Araç sonucu gibi değil kullanıcı mesajının parçası olarak: sahte tool_call'un imzası olmaz (400)
+        user_content = f"{question}\n\n<on_arama sorgu={json.dumps(question[:MAX_QUERY_CHARS], ensure_ascii=False)}>\n{results}\n</on_arama>"
     messages: list[dict] = [
         # Model bugünün tarihini bilmez (eğitim verisi geçmişte kalır); her çağrıda biz söylüyoruz
         {"role": "system", "content": AGENT_PROMPT.replace("{today}", date.today().isoformat())},
         *(history or []),
-        {"role": "user", "content": question},
+        {"role": "user", "content": user_content},
     ]
-    trace: list[dict] = []
     model = os.environ["CHAT_MODEL"]
 
     for step in range(1, max_steps + 1):
@@ -132,7 +150,8 @@ def print_result(answer: str, trace: list[dict], tool: SearchTool) -> None:
     total = {k: sum(t[k] for t in trace) for k in ("girdi", "cikti", "dusunme")}
     cost = estimate_cost(os.environ["CHAT_MODEL"], total["girdi"], total["cikti"], total["dusunme"])
     n_search = sum(len(t["aramalar"]) for t in trace)
-    print(f"[{len(trace)} model çağrısı, {n_search} arama | girdi {total['girdi']} / çıktı {total['cikti']} / "
+    n_calls = sum(t["adim"] > 0 for t in trace)  # adım 0 = ön arama, model çağrısı değil
+    print(f"[{n_calls} model çağrısı, {n_search} arama | girdi {total['girdi']} / çıktı {total['cikti']} / "
           f"düşünme {total['dusunme']} token, ${cost:.6f}]")
 
 

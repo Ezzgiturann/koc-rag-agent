@@ -315,3 +315,8 @@ Mimari: Streamlit (ui) → HTTP → FastAPI (api) → run_agent + SearchTool; he
 - Basit soru ~11 sn: Gemini ~3,3 sn × en az 2 çağrı (~%60; agent'ın "önce karar ver" bedeli), reranker ~3,7 sn/arama (~%35), embedding 0,2 sn, BM25 + Milvus ~0. Ölçmeden "embedding'i hızlandır" demek toplamın %2'sine emek harcamak olurdu.
 - Reranker seçenekleri 29 soruda ölçüldü: fp16 (16 bit sayılar) → 3,76 → 2,90 sn, sıralama birebir aynı (0 soru değişti). Aday derinliği 15 → 10 → 2,47 sn ama Hit@1 0,72 → 0,66: 4. günün "10 yeterli" ölçümü PDF'lerden önceydi; korpus büyüyünce doğru chunk havuza daha geç giriyor. Yalnızca fp16 uygulandı (GPU'da; CPU'da değil).
 - Kalan büyük kalem Gemini; gerçek süreyi kodla kısaltamıyoruz ama algılanan süreyi streaming (adım adım ilerleme + kelime kelime cevap) kısaltabilir — sonraki aday iş.
+
+### Adım 8: Ön arama (agent'ın "ne arayayım?" çağrısını atlamak)
+- Yeni soruda (geçmiş yoksa) soru kendimiz bir kez aranır, sonuçlar `<on_arama>` etiketiyle kullanıcı mesajına eklenir; yetmezse agent yine arar. Sahte tool_call olarak değil: Gemini imzası (thought_signature) olmayan çağrıya 400 veriyor. Takip sorularında yok ("peki 2016'da?" tek başına aranmaz). Adım 0 trace'te arama olarak sayılır, model çağrısı olarak sayılmaz.
+- 13 soru: 12'si tek çağrı (önce 2–5); girdi token 89 bin → 47 bin (maliyet yarıya); doğruluk 11/13 → 10/13. Gerileyen "önceki CEO" 3+3 tekrarla ölçüldü: ön aramasız 0/3, ön aramalı 1/3 → gerileme değil, önceki ✓'ler şanstı. Tek çalıştırmaya hüküm verilmez (5. günün dersi tekrar).
+- Bedel: selamlaşmada da arama yapılıyor (~3 sn boşa); kullanıcının kelimeleriyle arandığı için eşanlamlı sorularda agent yine kendi sorgusunu yazmak zorunda.
