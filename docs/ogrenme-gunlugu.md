@@ -272,3 +272,11 @@ Mimari: Streamlit (ui) → HTTP → FastAPI (api) → run_agent + SearchTool; he
 - SQL özet: `SUM(kosul)` ile sayma (karşılaştırma 1/0), `COALESCE` (boş tabloda SUM NULL), `GROUP BY` hata türü, `json_array_length` (soru başına arama), `json_each` (listeyi satırlara açma) + `json_valid` koruması (modelin bozuk JSON'u sorguyu düşürmesin). Medyan Python'da: tek bir 60 sn'lik takılma ortalamayı bozar, medyanı bozmaz.
 - İlk rapor (5 soru): ortalama 18,3 sn / medyan 15,7 sn; soru başına 1,4 arama; yıl filtreli arama 0/7 → "önceki CEO" sorusunda filtre gerekirken hiç kullanılmadı (5. gündeki gözlem artık ölçülebilir).
 - "Yok" bölümü kapsam dışı ile arama hatasını ayırmaya yarıyor: "asistan" (gerçekten anlamsız soru) ile "ondan önceki" (korpusta var, arama hatası) aynı listede; 👎 ikincisini işaretledi.
+
+## 7. Gün: PDF faaliyet raporları, final eval, Milvus Standalone
+
+### Adım 1: PDF'siz "önce" ölçümü (sonuçlar: `data/eval_7gun/*_pdf_oncesi.*`)
+- Kullanıcı soruları test setlerine girdi: retrieval 28 soru (yeni tür `kullanici`: sahibi kim, Çakıroğlu'ndan önceki CEO, en son yıllık gelir); agent karşılaştırması 12 soru (`önceki dönem`, `en güncel`). "2024 net kârı" PDF metni görülmeden eklenmedi: kanıt ifadesini tahminle yazmak testi yanlış bir şeyi ölçtürür.
+- Retrieval: 3 kullanıcı sorusu 5 yöntemin HİÇBİRİNDE ilk 10'da değil (0/3). Eski 25 soru değişmedi (reranker Hit@1 21/25). Benim yazdığım sorular korpusun kelimeleriyle yazılmıştı; kullanıcınınkiler değil.
+- Agent 10/12, RAG 7/12. "Önceki CEO" bu kez ✓, ama ikinci sorgu `"Koç Holding önceki CEO Turgay Durak 2015"`: adı kaynaktan değil modelin KENDİ bilgisinden sorguya koydu, sonra kaynakla doğruladı. Cevap kaynaklı, ama başarı akıl yürütmeden değil ezberden geldi; modelin bilmediği bir konuda işlemezdi.
+- "En güncel gelir" ikisinde de ✗ ve daha kötü: 2023 (54,5 milyar $) dediler; doğrusu 2025 (64,3 milyar $). Agent `yil_baslangic: 2021` ile aradı — filtre kullandı ama yeterince dar değil. Sahiplik sorusunda agent bu kez ortaklık yapısını buldu (rastgelelik).

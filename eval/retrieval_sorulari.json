@@ -26,5 +26,8 @@
   {"tur": "parafraz", "soru": "Holding'in en üst düzey icra yöneticisi kim?", "kanit": ["Levent Çakıroğlu"]},
   {"tur": "parafraz", "soru": "Dünyanın en büyük şirketleri listesine giren tek Türk firması hangisi?", "kanit": ["Fortune Global 500"]},
   {"tur": "parafraz", "soru": "Teknik liselerde okuyan gençlere şirket çalışanlarının gönüllü rehberlik ettiği girişimin adı ne?", "kanit": ["Meslek Lisesi Memleket Meselesi", "MLMM", "Meslek Lisesi Koçları"]},
-  {"tur": "parafraz", "soru": "Kocaeli'deki petrol işleme tesisini ağır artıklardan daha değerli yakıtlar elde edebilir hale getiren yatırım hangisi?", "kanit": ["Fuel Oil Dönüşüm"]}
+  {"tur": "parafraz", "soru": "Kocaeli'deki petrol işleme tesisini ağır artıklardan daha değerli yakıtlar elde edebilir hale getiren yatırım hangisi?", "kanit": ["Fuel Oil Dönüşüm"]},
+  {"tur": "kullanici", "soru": "Koç Holding'in sahibi kim?", "kanit": ["çoğunluk hissesi"], "not": "Sohbet modunda bulundu (5. gün): 'sahip' sitede 'çoğunluk hissesi' olarak geçiyor"},
+  {"tur": "kullanici", "soru": "Levent Çakıroğlu'ndan önce Koç Holding'in CEO'su kimdi?", "kanit": ["Turgay Durak"], "not": "Arayüzde 👎 (6. gün): agent hep 'Çakıroğlu' adıyla aradı"},
+  {"tur": "kullanici", "soru": "Koç Holding'in en son açıklanan yıllık konsolide geliri ne kadar?", "kanit": ["64,3 milyar"], "not": "Sohbet modunda bulundu (5. gün): agent 2024 (65,8) dedi; en güncel 2025 yılı, 2026-02-11 haberi"}
 ]
