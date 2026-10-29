@@ -8,16 +8,19 @@ API durumsuzdur: sohbet geçmişini istemci (Streamlit) tutar ve her istekte gö
 Deneme sayfası: http://127.0.0.1:8000/docs
 """
 
+import json
 import os
+import queue
 import threading
 import time
 from contextlib import asynccontextmanager
 from typing import Annotated, Literal
 
-from agent.loop import add_turn, check_citations, run_agent  # ilk import: GRPC ayarı pymilvus'tan önce
+from agent.loop import Event, add_turn, check_citations, run_agent  # ilk import: GRPC ayarı pymilvus'tan önce
 
 import openai
 from fastapi import FastAPI, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field, StringConstraints
 
 from agent.ask import get_client
@@ -85,10 +88,9 @@ def health() -> dict:
     return {"durum": "hazir" if "tool" in resources else "yukleniyor", "model": os.environ.get("CHAT_MODEL")}
 
 
-# async def DEĞİL: run_agent bloklayan bir fonksiyon (Gemini'yi ve reranker'ı bekler). async def
-# içinde tüm sunucuyu dondururdu; def ile FastAPI isteği ayrı bir thread'de çalıştırır.
-@app.post("/sor")
-def ask(req: AskRequest) -> AskResponse:
+def answer_question(req: AskRequest, on_event: Event | None = None) -> AskResponse:
+    """Soruyu agent'la cevaplar ve loglar. on_event: aramalar ve cevap metni oluştukça bildirilir.
+    Hatalar kullanıcıya gösterilecek kısa mesajlı HTTPException'a çevrilir."""
     history: list[dict] = []
     for turn in req.gecmis:
         history = add_turn(history, turn.soru, turn.cevap)  # atıflar silinir, son 3 tur kalır
@@ -98,7 +100,8 @@ def ask(req: AskRequest) -> AskResponse:
     with agent_lock:
         tool: SearchTool = resources["tool"]
         try:
-            answer, trace = run_agent(resources["llm"], tool, req.soru, verbose=False, history=history)
+            answer, trace = run_agent(resources["llm"], tool, req.soru, verbose=False, history=history,
+                                      on_event=on_event)
         except Exception as e:
             # Ayrıntı yalnızca log'a; kullanıcıya iç hata mesajı gösterilmez
             log_query(req.soru, None, [], [], model, {}, 0.0, time.perf_counter() - start,
@@ -122,6 +125,39 @@ def ask(req: AskRequest) -> AskResponse:
                          usage, cost, duration)
     return AskResponse(id=query_id, cevap=answer, kaynaklar=sources, aramalar=searches,
                        token=usage, maliyet=cost, sure=round(duration, 2))
+
+
+# async def DEĞİL: run_agent bloklayan bir fonksiyon (Gemini'yi ve reranker'ı bekler). async def
+# içinde tüm sunucuyu dondururdu; def ile FastAPI isteği ayrı bir thread'de çalıştırır.
+@app.post("/sor")
+def ask(req: AskRequest) -> AskResponse:
+    return answer_question(req)
+
+
+@app.post("/sor-akis")
+def ask_stream(req: AskRequest) -> StreamingResponse:
+    """Aynı cevap, olaylar oluştukça: her satır bir JSON (NDJSON).
+    {"olay": "arama"|"metin"|"sifirla"} ... ve sonda {"olay": "bitti", ...AskResponse} veya {"olay": "hata"}."""
+    events: queue.Queue[dict | None] = queue.Queue()
+
+    def worker() -> None:
+        # Agent "itme" (callback) ile olay üretir, HTTP akışı "çekme" ile okur → arada kuyruk
+        try:
+            events.put({"olay": "bitti", **answer_question(req, events.put).model_dump()})
+        except HTTPException as e:
+            events.put({"olay": "hata", "kod": e.status_code, "mesaj": e.detail})
+        except Exception:
+            events.put({"olay": "hata", "kod": 500, "mesaj": "Bir hata oluştu."})
+        finally:
+            events.put(None)  # akış sonu işareti
+
+    threading.Thread(target=worker, daemon=True).start()
+
+    def lines():
+        while (event := events.get()) is not None:
+            yield json.dumps(event, ensure_ascii=False) + "\n"
+
+    return StreamingResponse(lines(), media_type="application/x-ndjson")
 
 
 @app.post("/geri-bildirim")

@@ -8,6 +8,7 @@ API sürecinde: arayüz yalnızca HTTP isteği atar.
     streamlit run app/ui.py
 """
 
+import json
 import os
 import re
 
@@ -65,22 +66,47 @@ def api_error(response: httpx.Response) -> str:
     return f"Beklenmeyen hata (HTTP {response.status_code})."
 
 
-def ask_api(question: str) -> dict:
-    """Soruyu geçmişle birlikte gönderir; {"ok": True, ...cevap} veya {"ok": False, "hata": ...} döner."""
+def ask_api(question: str, status, placeholder) -> dict:
+    """Soruyu geçmişle birlikte /sor-akis'a gönderir; olaylar geldikçe ekranı günceller.
+
+    status: aramaların listelendiği durum kutusu; placeholder: cevabın kelime kelime yazıldığı alan.
+    Döndürür: {"ok": True, ...cevap} veya {"ok": False, "hata": ...}.
+    """
     msgs = st.session_state.messages
     # Yalnızca başarılı cevaplar geçmişe girer: hata mesajı modele "önceki cevap" gibi gitmesin
     pairs = [{"soru": q["content"], "cevap": a["content"]}
              for q, a in zip(msgs, msgs[1:]) if q["role"] == "user" and a.get("meta")]
+    text = ""
+    n_search = 0
     try:
-        r = httpx.post(f"{API_URL}/sor", json={"soru": question, "gecmis": pairs[-HISTORY_TURNS:]},
-                       timeout=TIMEOUT)
+        with httpx.stream("POST", f"{API_URL}/sor-akis", json={"soru": question, "gecmis": pairs[-HISTORY_TURNS:]},
+                          timeout=TIMEOUT) as r:
+            if r.status_code != 200:  # ör. 422: doğrulama hatası akış başlamadan döner
+                r.read()
+                return {"ok": False, "hata": api_error(r)}
+            for line in r.iter_lines():  # her satır bir olay (NDJSON)
+                event = json.loads(line)
+                if event["olay"] == "arama":
+                    n_search += 1
+                    status.update(label=f"🔍 Aranıyor ({n_search})…")
+                    status.write(f"🔍 {escape_md(event['sorgu'][:100])} → {event['kaynak']} kaynak")
+                elif event["olay"] == "metin":
+                    text += event["parca"]
+                    placeholder.markdown(safe_answer(text) + " ▌")  # ▌: yazıyor imleci
+                elif event["olay"] == "sifirla":  # yazılan metin cevap değilmiş, model yine arıyor
+                    text = ""
+                    placeholder.empty()
+                elif event["olay"] == "bitti":
+                    status.update(label=f"✓ {n_search} arama", state="complete")
+                    return {"ok": True, **{k: v for k, v in event.items() if k != "olay"}}
+                elif event["olay"] == "hata":
+                    status.update(label="Hata", state="error")
+                    return {"ok": False, "hata": event["mesaj"]}
     except httpx.TimeoutException:
         return {"ok": False, "hata": "Cevap çok uzun sürdü; tekrar dene."}
     except httpx.ConnectError:
         return {"ok": False, "hata": "API'ye bağlanılamadı. Çalışıyor mu? (uvicorn app.api:app --reload)"}
-    if r.status_code != 200:
-        return {"ok": False, "hata": api_error(r)}
-    return {"ok": True, **r.json()}
+    return {"ok": False, "hata": "Bağlantı cevap tamamlanmadan kesildi."}
 
 
 def send_feedback(index: int, score: int) -> None:
@@ -148,8 +174,11 @@ if question := st.chat_input("Sorunu yaz..."):
     st.session_state.messages.append({"role": "user", "content": question})
     with st.chat_message("user"):
         st.text(question)
-    with st.chat_message("assistant"), st.spinner("Aranıyor ve cevap yazılıyor..."):
-        result = ask_api(question)
+    with st.chat_message("assistant"):
+        # Spinner yerine canlı ilerleme: aramalar durum kutusunda, cevap geldikçe yazılır
+        status = st.status("Düşünüyor…", expanded=False)
+        placeholder = st.empty()
+        result = ask_api(question, status, placeholder)
     if result.pop("ok"):
         answer = result.pop("cevap")
         st.session_state.messages.append({"role": "assistant", "content": answer, "meta": result, "feedback": None})

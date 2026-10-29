@@ -20,6 +20,7 @@ import json
 import os
 import re
 import sys
+from collections.abc import Callable
 from datetime import date
 
 from agent.tools import MAX_QUERY_CHARS, TOOLS, SearchTool, execute_tool  # ilk import: GRPC ayarı (search.py) önce yüklensin
@@ -65,14 +66,71 @@ def usage_of(response) -> dict[str, int]:
             "dusunme": u.total_tokens - u.prompt_tokens - u.completion_tokens}
 
 
+Event = Callable[[dict], None]  # olay: {"olay": "arama" | "metin" | "sifirla", ...}
+
+
+def stream_call(llm: OpenAI, on_event: Event | None, **kwargs) -> tuple[dict, dict[str, int]]:
+    """Modeli akış (streaming) modunda çağırır: metin parçaları geldikçe on_event'e iletilir.
+
+    Döndürür: (asistan mesajı — bir sonraki çağrıya OLDUĞU GİBİ eklenecek, token kullanımı).
+    """
+    content = ""
+    calls: dict[int, dict] = {}  # sıra (index) → araç çağrısı; parça parça gelebilir
+    usage = None
+    stream = llm.chat.completions.create(stream=True, stream_options={"include_usage": True}, **kwargs)
+    for chunk in stream:
+        if chunk.usage:
+            usage = chunk.usage  # Gemini her parçada BİRİKİMLİ kullanım gönderiyor: sonuncusu toplam
+        if not chunk.choices:
+            continue
+        delta = chunk.choices[0].delta
+        if delta.content:
+            content += delta.content
+            if on_event:
+                on_event({"olay": "metin", "parca": delta.content})
+        for tc in delta.tool_calls or []:
+            # Gemini çağrıyı tek parçada (imzasıyla) yolluyor; OpenAI argümanları parça parça → birleştir
+            call = calls.setdefault(tc.index or 0, {"id": "", "type": "function",
+                                                    "function": {"name": "", "arguments": ""}})
+            data = tc.model_dump(exclude_none=True)
+            call["id"] = data.get("id", call["id"])
+            call["function"]["name"] += data.get("function", {}).get("name", "")
+            call["function"]["arguments"] += data.get("function", {}).get("arguments", "")
+            if "extra_content" in data:  # thought_signature: olmazsa sonraki çağrı 400
+                call["extra_content"] = data["extra_content"]
+
+    message: dict = {"role": "assistant", "content": content or None}
+    if calls:
+        message["tool_calls"] = list(calls.values())
+        if content and on_event:
+            on_event({"olay": "sifirla"})  # ekrana yazılan metin cevap değilmiş: araç çağrısı geldi
+    message = {k: v for k, v in message.items() if v is not None}
+    u = {"prompt_tokens": 0, "completion_tokens": 0, "total_tokens": 0} if usage is None else usage.model_dump()
+    return message, {"girdi": u["prompt_tokens"], "cikti": u["completion_tokens"],
+                     "dusunme": u["total_tokens"] - u["prompt_tokens"] - u["completion_tokens"]}
+
+
+def run_search(tool: SearchTool, name: str, arguments: str, on_event: Event | None) -> str:
+    """Aracı çalıştırır; arayüze "şunu aradım, şu kadar kaynak buldum" olayını bildirir."""
+    result = execute_tool(tool, name, arguments)
+    if on_event:
+        try:
+            query = json.loads(arguments).get("sorgu", arguments)
+        except (json.JSONDecodeError, AttributeError):
+            query = arguments
+        on_event({"olay": "arama", "sorgu": str(query), "kaynak": len(re.findall(r"<kaynak id=", result))})
+    return result
+
+
 def run_agent(
     llm: OpenAI, tool: SearchTool, question: str, max_steps: int = MAX_STEPS, verbose: bool = True,
-    history: list[dict] | None = None, prefetch: bool = True,
+    history: list[dict] | None = None, prefetch: bool = True, on_event: Event | None = None,
 ) -> tuple[str, list[dict]]:
     """Soruyu agent döngüsüyle cevaplar; (cevap, adım izi) döndürür. Kaynaklar tool.sources'ta.
 
     history: önceki soru-cevaplar (add_turn ile); takip sorularını anlamak için.
     prefetch: geçmiş yoksa soruyu önceden bir kez ara (adım 0).
+    on_event: verilirse aramalar ve cevap metni oluştukça bildirilir (arayüzde canlı gösterim).
     """
     tool.reset()
     trace: list[dict] = []
@@ -80,7 +138,7 @@ def run_agent(
     # Takip sorusunda ("peki 2016'da?") soru tek başına anlamsız: ön arama yok, agent kendisi yazar
     if prefetch and not history:
         args = json.dumps({"sorgu": question[:MAX_QUERY_CHARS]}, ensure_ascii=False)
-        results = execute_tool(tool, "ara", args)
+        results = run_search(tool, "ara", args, on_event)
         trace.append({"adim": 0, "girdi": 0, "cikti": 0, "dusunme": 0, "aramalar": [args], "not": "ön arama"})
         if verbose:
             print(f"  adım 0: ön arama({question[:60]!r}) → {len(re.findall(r'<kaynak id=', results))} kaynak")
@@ -95,37 +153,37 @@ def run_agent(
     model = os.environ["CHAT_MODEL"]
 
     for step in range(1, max_steps + 1):
-        response = llm.chat.completions.create(
-            model=model, messages=messages, tools=TOOLS, tool_choice="auto", reasoning_effort="low",
-        )
-        message = response.choices[0].message
-        entry = {"adim": step, **usage_of(response), "aramalar": []}
+        message, usage = stream_call(llm, on_event, model=model, messages=messages, tools=TOOLS,
+                                     tool_choice="auto", reasoning_effort="low")
+        entry = {"adim": step, **usage, "aramalar": []}
         trace.append(entry)
 
-        if not message.tool_calls:  # model araç istemedi → cevap hazır
+        if "tool_calls" not in message:  # model araç istemedi → cevap hazır
             if verbose:
                 print(f"  adım {step}: cevap yazıldı  [girdi {entry['girdi']} token]")
-            return message.content or "", trace
+            return message.get("content", ""), trace
 
-        # Modelin mesajını OLDUĞU GİBİ ekle: thought_signature olmadan sonraki çağrı 400 verir
-        messages.append(message.model_dump(exclude_none=True))
-        for call in message.tool_calls:
-            result = execute_tool(tool, call.function.name, call.function.arguments)
-            messages.append({"role": "tool", "tool_call_id": call.id, "content": result})
-            entry["aramalar"].append(call.function.arguments)
+        # Modelin mesajını OLDUĞU GİBİ (imzasıyla) ekle: thought_signature olmadan sonraki çağrı 400 verir
+        messages.append(message)
+        for call in message["tool_calls"]:
+            name, arguments = call["function"]["name"], call["function"]["arguments"]
+            result = run_search(tool, name, arguments, on_event)
+            messages.append({"role": "tool", "tool_call_id": call["id"], "content": result})
+            entry["aramalar"].append(arguments)
             if verbose:
                 found = len(re.findall(r"<kaynak id=", result)) or result[:60]
-                print(f"  adım {step}: {call.function.name}({call.function.arguments}) → {found} kaynak"
-                      f"  [girdi {entry['girdi']} token]")
+                print(f"  adım {step}: {name}({arguments}) → {found} kaynak  [girdi {entry['girdi']} token]")
 
     # Adım sınırı doldu: elindekiyle cevaplat. tool_choice="none" yetmiyor: Gemini bazen yine
     # tool_calls döndürüyor (7. gün, boş cevap). Araç tanımı hiç gönderilmezse çağıramaz.
-    response = llm.chat.completions.create(model=model, messages=messages, reasoning_effort="low")
-    trace.append({"adim": max_steps + 1, **usage_of(response), "aramalar": [], "not": "adım sınırı"})
+    message, usage = stream_call(llm, on_event, model=model, messages=messages, reasoning_effort="low")
+    trace.append({"adim": max_steps + 1, **usage, "aramalar": [], "not": "adım sınırı"})
     if verbose:
         print(f"  adım {max_steps + 1}: adım sınırı doldu, araçsız cevap istendi")
     # Son güvence: kullanıcı hiçbir durumda boş cevap görmesin
-    return response.choices[0].message.content or NO_ANSWER, trace
+    if not message.get("content") and on_event:
+        on_event({"olay": "metin", "parca": NO_ANSWER})
+    return message.get("content") or NO_ANSWER, trace
 
 
 def check_citations(answer: str, n_sources: int) -> tuple[set[int], set[int]]:

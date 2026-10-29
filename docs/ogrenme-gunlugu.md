@@ -320,3 +320,9 @@ Mimari: Streamlit (ui) → HTTP → FastAPI (api) → run_agent + SearchTool; he
 - Yeni soruda (geçmiş yoksa) soru kendimiz bir kez aranır, sonuçlar `<on_arama>` etiketiyle kullanıcı mesajına eklenir; yetmezse agent yine arar. Sahte tool_call olarak değil: Gemini imzası (thought_signature) olmayan çağrıya 400 veriyor. Takip sorularında yok ("peki 2016'da?" tek başına aranmaz). Adım 0 trace'te arama olarak sayılır, model çağrısı olarak sayılmaz.
 - 13 soru: 12'si tek çağrı (önce 2–5); girdi token 89 bin → 47 bin (maliyet yarıya); doğruluk 11/13 → 10/13. Gerileyen "önceki CEO" 3+3 tekrarla ölçüldü: ön aramasız 0/3, ön aramalı 1/3 → gerileme değil, önceki ✓'ler şanstı. Tek çalıştırmaya hüküm verilmez (5. günün dersi tekrar).
 - Bedel: selamlaşmada da arama yapılıyor (~3 sn boşa); kullanıcının kelimeleriyle arandığı için eşanlamlı sorularda agent yine kendi sorgusunu yazmak zorunda.
+
+### Adım 9: Streaming (canlı ilerleme + kelime kelime cevap)
+- Gemini akışta: metin parça parça; araç çağrısı TEK parçada, imzasıyla (thought_signature) → parçalardan asistan mesajı yeniden kurulup bir sonraki çağrıya eklenir (400 yok, test edildi). Kullanım (token) her parçada BİRİKİMLİ geliyor (OpenAI'de ayrı son parça): sonuncusu toplam.
+- `run_agent(on_event=...)`: "arama" (sorgu, kaynak sayısı), "metin" (parça), "sifirla" (yazılan metin cevap değilmiş, araç çağrısı geldi). Agent olayları İTER (callback), HTTP akışı ÇEKER (generator) → arada `queue.Queue` + işçi thread.
+- `POST /sor-akis`: NDJSON (her satır bir JSON olay), sonda "bitti" (tam cevap + kaynaklar + log id) veya "hata". `/sor` aynı `answer_question`'ı kullanıyor (eval'ler değişmedi). Arayüz: `st.status` kutusunda aramalar, cevap `▌` imleciyle yazılır.
+- Toplam süre değişmez; ilk geri bildirim ön arama bitince (~3,5 sn). Ölçüm anında Gemini tek çağrıda 22 sn bekletti — akışın değeri tam bu: kullanıcı boş ekrana bakmıyor.
