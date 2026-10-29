@@ -17,3 +17,7 @@ torch==2.14.1
 fastapi==0.162.0                # HTTP API; istek/cevap biçimi Pydantic ile doğrulanır
 uvicorn==0.54.0                 # FastAPI uygulamasını çalıştıran ASGI sunucusu
 streamlit==1.66.1               # sohbet arayüzü
+
+# 7. gün: PDF'ten metin ve tablo çıkarma (yerel modeller; ilk çalıştırmada indirilir)
+# Not: docling-ibm-models huggingface_hub<2 istiyor → 2.3.0'dan 1.33.0'a indi; transformers/tokenizers uyumlu, reranker test edildi
+docling==2.144.0

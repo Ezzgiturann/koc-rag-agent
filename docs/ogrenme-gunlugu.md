@@ -286,3 +286,15 @@ Mimari: Streamlit (ui) → HTTP → FastAPI (api) → run_agent + SearchTool; he
 - Tarih = yayın tarihi (2024 raporu 2025-03-11), kapsadığı yıl değil; HTML haberlerindeki gibi.
 - `cdn.koc.com.tr/robots.txt` 400 → boş kural listesi = her şeye izin (robotparser'ın 4xx davranışı; önce test edildi). RateLimiter ve User-Agent fetcher.py'den.
 - Dört doğrulama: son adres hâlâ cdn mi, content-type PDF mi, boyut ≤ 30 MB (stream ile indirirken de), ilk byte'lar `%PDF` mi (sihirli byte: türü içerikten doğrulamak). Dosya ancak hepsi geçince diske yazılır: bozuk veri önbelleğe girerse kalıcılaşır.
+
+### Adım 3: Docling ile PDF metni (`crawler/pdf_extract.py`)
+- OCR kapalı (dijital PDF, metin içinde), TableFormer açık (tablo → markdown, satır/sütun korunur). Sayfa sayfa `export_to_markdown(page_no=N)`; üst/alt bilgi ("furniture") varsayılan olarak dışarıda → tekrar eden rapor adı/sayfa no gürültüsü yok. URL'ye `#page=N`: atıf sayfa düzeyinde, şema değişmeden.
+- İlk ölçüm yanılttı: 16 sayfa 225 sn (14 sn/sayfa → 720 sayfa 3 saat) — çoğu model indirme/yükleme. Isınmadan sonra 1,6 sn/sayfa (MPS; CPU 2,0). Gerçek: 681 sayfa, 449 tablo, ~18 dk. İlk çalıştırma sonrakileri temsil etmez (reranker'daki ders).
+- Yarıda kalmaya dayanıklı: PDF başına ayrı çıktı, önce `.tmp`'ye yaz sonra `rename` (atomik) → yarım dosya "işlenmiş" sayılmaz.
+- Docling kurulumu `huggingface_hub`'ı 2.3.0 → 1.33.0'a düşürdü (docling-ibm-models `<2` istiyor); bağımlılıklar kontrol edildi, reranker kurulumdan sonra test edildi.
+
+### Adım 4: Tablo farkındalıklı chunk + indeks (4.173 chunk)
+- Tabloda birim SATIR; tablo bölünürse yeni chunk başlık satırıyla başlar (sütun = yıl bilgisi kaybolmasın). Cümleler boşlukla, satırlar alt satırla birleşir. Hücre boşlukları sıkıştırılır (Docling hizalama boşluğu: az token, çok bayt; Milvus sınırı 8.192 bayt → aşılırsa açık hata).
+- Benim yanılgım: "HTML'de tablo yok" sonucunu `|---` aramasıyla çıkarmıştım; trafilatura ayraç satırı koymuyor. "Eski chunk'lar birebir aynı mı?" testi yakaladı: 528 sayfa aynı, 4 tablolu sayfa (temettü, sermaye artırımı...) değişti — iyileşme: eskiden tablo tek satır yığınıydı.
+- 1.860 → 4.173 chunk (2,2 kat; PDF 2.314, %39'u tablolu). Embedding önbelleği sayesinde yalnızca 2.320 chunk hesaplandı (159 sn, yerel Ollama).
+- Korpus değişince test değişti: "2024 net kârı" artık cevaplanabilir (2024 raporu s. 15: "Konsolide net dönem kârı ise 1,3 milyar TL") → `pdf` türüne taşındı; yeni "cevapsız" sorusu "ortalama maaş" (korpusta 0). Hızlı kontrol: reranker 1. sırada s. 15.

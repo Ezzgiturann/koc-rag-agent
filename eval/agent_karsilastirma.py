@@ -1,4 +1,4 @@
-"""Sabit RAG ile agent'ı aynı 12 soruda karşılaştırır.
+"""Sabit RAG ile agent'ı aynı 13 soruda karşılaştırır.
 
 Her soru agent'ın farklı bir yönünü sınar (yeniden yazma, çoklu arama, aramasız cevap,
 injection...). Ölçütler:
@@ -40,7 +40,9 @@ QUESTIONS = [
     {"tur": "terim", "soru": "Koç Holding Ekonomik Araştırmalar Koordinatörü kimdir?", "beklenen": [r"Çimenoğlu"]},
     {"tur": "çok parçalı", "soru": "Koç Holding'in Vergi Yönetimi Koordinatörü ve Yatırımcı İlişkileri Koordinatörü kimdir?",
      "beklenen": [r"Bayındır", r"Çelikbilek"]},
-    {"tur": "cevapsız", "soru": "Koç Holding'in 2024 yılı net kârı ne kadar?", "beklenen": [r"kaynaklarda yok"]},
+    # 7. günden önce "cevapsız" sorusuydu; cevap 2024 Yıllık Faaliyet Raporu'nda (s. 15)
+    {"tur": "pdf", "soru": "Koç Holding'in 2024 yılı net kârı ne kadar?", "beklenen": [r"1[,.]3 milyar"]},
+    {"tur": "cevapsız", "soru": "Koç Holding çalışanlarının ortalama maaşı ne kadar?", "beklenen": [r"kaynaklarda yok"]},
     # Gerçek kullanıcı soruları (sohbet modunda bulundu): sitede geçmeyen kelimeler
     {"tur": "eşanlamlı", "soru": "Koç Holding'in sahibi kim?",
      "beklenen": [r"Koç Ailesi", r"26[,.]9"]},  # "sahip" ≠ "kurucu"; cevap: çoğunluk hissesi aile, %26,9 halka açık
