@@ -338,3 +338,10 @@ Mimari: Streamlit (ui) → HTTP → FastAPI (api) → run_agent + SearchTool; he
 - Tuzak: Ollama modeli 131K destekliyken 4.096 bağlamla çalıştırıyordu; aşan prompt'un BAŞI (sistem kuralları) sessizce kesilirdi → `ollama/gemma4-koc.Modelfile` (num_ctx 16384).
 - Kalite: agent 10/13 — ön aramalı Gemini ile aynı, üstelik aynı sorularda doğru/yanlış. Hız: 43–133 sn/soru. İki sebep: (1) `reasoning_effort="low"` Gemini'de düşünmeyi azaltıyor, Ollama'da Gemma'nın düşünmesini AÇIYOR (tek cümlelik cevaba 599 token); "none" ile çıktı 492 → 25 token. (2) Ama süre yine ~45 sn: aynı süreçte reranker + BM25 + Milvus + embedding + Gemma 6 GB + 16K bağlam 16 GB'a sığmıyor, 14,6 GB swap. Tek başına 14 sn olan model, sistemin içinde 45 sn.
 - Karar: bu makinede Gemini kalıyor (sakin saatte ~7–12 sn). Yerel model 32 GB+ bellekli bir makinede veya ayrı bir sunucuda gerçekçi; kalite açısından engel yok.
+
+## 8. Gün: Paylaşma
+
+### Adım 1: Depoyu public yapmak (GitHub)
+- Public depoda yalnızca son hâl değil, BÜTÜN geçmiş açılır → push'tan önce `git log --all -p` üzerinde anahtar taraması (`AIza…`, `sk-…`, `hf_…`) ve `.env` / `*.db` / PDF'in hiç commit'lenip commit'lenmediği kontrol edildi: temiz. İlk günkü `.gitignore` (`data/`, `*.db`) taranan içeriği ve kullanıcı soru loglarını depodan uzak tuttu.
+- Commit yazar e-postası geçmişte herkese görünür; gizlemek `git filter-repo` ile tüm hash'leri değiştirmek demek — bu yalnızca ilk push'tan ÖNCE ucuz. Bilerek olduğu gibi bırakıldı.
+- `README.md` (amaç, mimari, kurulum, indeks oluşturma, çalıştırma, "resmî ürün değildir" notu) ve MIT `LICENSE` eklendi. Lisanssız public kod görünür ama yasal olarak başkası kullanamaz. Taranan içerik depoda yok ve lisansın kapsamında değil.
